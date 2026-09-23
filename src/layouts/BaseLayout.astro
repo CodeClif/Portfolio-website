@@ -33,8 +33,9 @@ const nav = [
 
       <p class="hero-tagline" aria-label="Building things, learning out loud.">
         <span class="hero-tagline-ghost" aria-hidden="true">Building things, learning out loud.</span>
-        <span class="hero-tagline-typed" id="heroTaglineTyped" aria-hidden="true"></span>
-        <span class="hero-tagline-cursor" id="heroTaglineCursor" aria-hidden="true"></span>
+        <span class="hero-tagline-live" aria-hidden="true">
+          <span class="hero-tagline-typed" id="heroTaglineTyped"></span><span class="hero-tagline-cursor" id="heroTaglineCursor"></span>
+        </span>
       </p>
     </header>
 
@@ -84,8 +85,8 @@ const nav = [
 
           const typeNext = () => {
             if (index >= text.length) {
-              setTimeout(() => cursor.classList.add('is-done'), 900);
-              setTimeout(() => { cursor.hidden = true; }, 1500);
+              cursor.classList.add('is-finishing');
+              setTimeout(() => { cursor.hidden = true; }, 1100);
               return;
             }
             const char = text[index++];
