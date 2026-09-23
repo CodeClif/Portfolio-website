@@ -2,7 +2,7 @@
 
 /* Minimal article shell inspired by the quiet reading layout */
 .article-site-chrome{
-  min-height:138px;
+  min-height:82px;
   display:flex;
   justify-content:flex-end;
   align-items:flex-start;
@@ -54,7 +54,7 @@
 
 @media(max-width:600px){
   .article-site-chrome{
-    min-height:142px;
+    min-height:74px;
   }
   .article-page{
     padding:0 0 52px;
