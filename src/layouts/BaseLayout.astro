@@ -5,6 +5,7 @@ const { title = 'Clif Code', description = 'Building things, learning out loud.'
 const pageTitle = title === 'Clif Code' ? title : `${title} — Clif Code`;
 const base = import.meta.env.BASE_URL;
 const url = (path = '') => path ? `${base}${path.replace(/^\//, '').replace(/\/$/, '')}/` : base;
+const asset = (path = '') => `${base}${path.replace(/^\//, '')}`;
 const nav = [
   ['Projects','projects'], ['Research','research'], ['Diary','diary'],
   ['AI','ai'], ['Systems','systems'], ['Markets','markets'],
@@ -25,7 +26,10 @@ const nav = [
     <header class="hero">
       <a class="identity" href={url()} aria-label="Clif Code home">
         <img class="avatar" src="https://radiant-trail-8c3z28a.shipstatic.com/avatar.webp" alt="Clif Code profile" width="104" height="104" />
-        <div class="identity-copy"><h1>Clif Code</h1><p>Building things, learning out loud.</p></div>
+        <div class="identity-copy">
+          <img class="identity-mark" src={asset('clif-code-mark.svg')} alt="Clif Code" />
+          <p>Building things, learning out loud.</p>
+        </div>
       </a>
       <button class="theme-control" id="themeToggle" type="button" aria-label="Toggle dark mode" aria-pressed="false">
         <span aria-hidden="true">☼</span><span class="switch"><span class="knob"></span></span><span aria-hidden="true">☾</span>
