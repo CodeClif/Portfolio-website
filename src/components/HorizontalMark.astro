@@ -1,9 +1,0 @@
----
-const { class: className = '' } = Astro.props;
-const base = import.meta.env.BASE_URL;
-const asset = (path = '') => `${base}${path.replace(/^\//, '')}`;
----
-<span class:list={['horizontal-calligraphy', className]} aria-label="Clif Code">
-  <span class="mark-crop mark-clif"><img src={asset('clif-code-mark.svg')} alt="" /></span>
-  <span class="mark-crop mark-code"><img src={asset('clif-code-mark.svg')} alt="" /></span>
-</span>
