@@ -23,14 +23,17 @@ const nav = [
 <body>
   <main class="site-shell">
     <header class="hero">
-      <a class="identity" href={url()} aria-label="Clif Code home">
-        <img class="avatar" src="https://radiant-trail-8c3z28a.shipstatic.com/avatar.webp" alt="Clif Code profile" width="104" height="104" />
-        <div class="identity-copy"><h1>Clif Code</h1><p>Building things, learning out loud.</p></div>
+      <a class="identity-name" href={url()} aria-label="Clif Code home">
+        <h1>Clif Code</h1>
       </a>
+
       <button class="theme-control" id="themeToggle" type="button" aria-label="Toggle dark mode" aria-pressed="false">
         <span aria-hidden="true">☼</span><span class="switch"><span class="knob"></span></span><span aria-hidden="true">☾</span>
       </button>
+
+      <p class="hero-tagline">Building things, learning out loud.</p>
     </header>
+
     <nav class="topic-nav" aria-label="Topics">
       {nav.map(([label, slug]) => <a href={url(slug)} aria-current={label === current ? 'page' : undefined}>{label}</a>)}
     </nav>
