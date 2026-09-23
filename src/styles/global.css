@@ -97,3 +97,51 @@
     font-size:1.1rem;
   }
 }
+
+
+/* Stable crop for horizontal calligraphy */
+.horizontal-calligraphy{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  height:88px;
+  margin:0 0 6px;
+  overflow:visible;
+}
+.mark-crop{
+  position:relative;
+  display:block;
+  width:70px;
+  height:88px;
+  overflow:hidden;
+  flex:0 0 auto;
+}
+.mark-crop img{
+  position:absolute;
+  left:0;
+  width:70px;
+  max-width:none;
+  height:auto;
+  display:block;
+}
+.mark-clif img{top:-5px}
+.mark-code img{top:-93px}
+:root[data-theme=dark] .mark-crop img{filter:invert(1)}
+.calligraphy-glyph{display:none!important}
+
+@media(max-width:600px){
+  .horizontal-calligraphy{
+    height:74px;
+    gap:7px;
+    margin-bottom:5px;
+  }
+  .mark-crop{
+    width:59px;
+    height:74px;
+  }
+  .mark-crop img{
+    width:59px;
+  }
+  .mark-clif img{top:-4px}
+  .mark-code img{top:-78px}
+}
