@@ -121,3 +121,56 @@
     font-size:1.38rem;
   }
 }
+
+
+/* Project story pages */
+.project-header .project-kicker{
+  margin:0 0 10px;
+  color:var(--muted);
+  font-size:.82rem;
+  letter-spacing:.02em;
+}
+.project-header .project-summary{
+  width:min(680px,100%);
+  margin:13px 0 0;
+  color:var(--article);
+  font-size:1rem;
+  line-height:1.58;
+}
+.project-meta-row{
+  padding-top:11px;
+}
+.project-story .project-stack{
+  display:block;
+  width:min(720px,100%);
+  margin:46px auto 0;
+  padding-top:18px;
+  border-top:1px solid var(--rule);
+  color:var(--muted);
+  font-size:.86rem;
+  line-height:1.55;
+}
+.project-stack strong{
+  display:block;
+  margin-bottom:5px;
+  color:var(--text);
+  font-weight:620;
+}
+.project-stack span{
+  display:block;
+}
+@media(max-width:600px){
+  .project-header .project-kicker{
+    font-size:.78rem;
+    margin-bottom:8px;
+  }
+  .project-header .project-summary{
+    font-size:.92rem;
+    line-height:1.55;
+    margin-top:11px;
+  }
+  .project-story .project-stack{
+    margin-top:38px;
+    font-size:.8rem;
+  }
+}
