@@ -1,0 +1,257 @@
+---
+layout: ../../layouts/ProjectLayout.astro
+title: Forecast
+description: "A play-credit prediction market experiment focused on African events, built around market prices, atomic trading, honest probability history and evidence-backed settlement."
+summary: "A prediction-market experiment using play credits. The interesting part is not the YES and NO buttons — it is making every price move, trade and settlement trace back to a valid state transition."
+status: Testing
+location: Africa
+website: https://testing-forecast-alpha.codeclif.workers.dev
+---
+
+Forecast started because I was fascinated by a simple idea: if people disagree about what will happen, can you turn that disagreement into a price?
+
+I had already been reading about prediction markets, but building one made the mechanism much more concrete. A screen with a question, a percentage and two buttons is easy to imitate. The difficult part is deciding what that percentage means, what happens when somebody trades, how the market remembers that movement, what happens when a browser sends the same trade twice, and who is allowed to say the event is finally over.
+
+Forecast is still an experiment. It currently uses **non-redeemable play credits**, not real money. A new account starts with 10,000 credits, and there are no deposits, withdrawals, MoMo, crypto, KYC or cash settlement. That lets me explore the product and market mechanics without pretending the prototype is something it is not.
+
+## A probability should come from the market, not from the interface
+
+For a normal binary market, Forecast has a YES side and a NO side. If a YES share eventually settles successfully it is worth 1 play credit; if YES loses it is worth 0. A displayed price such as 0.62 can therefore be read roughly as a market-implied 62% YES probability.
+
+That interpretation is common in binary prediction markets: the CFTC's public explanation of event contracts uses the same basic idea of YES/NO contracts with fixed terminal payouts and prices that reflect the market's expectation. Forecast borrows the information-market mechanism, but its current credits have no cash value.
+
+<aside class="source-note"><span>Background · </span><a href="https://www.cftc.gov/LearnandProtect/PredictionMarkets" target="_blank" rel="noopener noreferrer">CFTC — Understanding Prediction Markets and Event Contracts ↗</a></aside>
+
+The first version of Forecast could have faked price movement with a rule like “every 100 credits moves the percentage by 3 points.” I did not want that. A market price should be a consequence of market state, not an animation attached to a Buy button.
+
+Forecast therefore uses an **LMSR — Logarithmic Market Scoring Rule — automated market maker** for its binary core. The market stores two share-state quantities, `qYes` and `qNo`, plus a liquidity parameter `b`. The cost function is:
+
+`C(qYes, qNo) = b × ln(e^(qYes/b) + e^(qNo/b))`
+
+and the YES price is derived from the same state:
+
+`P(YES) = e^(qYes/b) / (e^(qYes/b) + e^(qNo/b))`
+
+NO is the complement.
+
+Robin Hanson's work on logarithmic market scoring rules is the main theoretical reference behind this mechanism. The useful property for Forecast is that the market maker can quote a price even when there is no human counterparty waiting on the other side. A trader changes the market by paying the difference between two states of the cost function.
+
+<aside class="source-note"><span>Mechanism · </span><a href="https://hanson.gmu.edu/mktscore.pdf" target="_blank" rel="noopener noreferrer">Robin Hanson — Logarithmic Market Scoring Rules for Modular Combinatorial Information Aggregation ↗</a></aside>
+
+The parameter `b` controls how sensitive the market is. A small `b` means the same trade moves probability more. A larger `b` makes the market deeper. That means liquidity is not just a visual label; it changes the mathematics of execution.
+
+One thing I learned while auditing the engine is that even the market-maker subsidy is easy to oversimplify. The familiar binary LMSR bound `b × ln(2)` applies cleanly to a 50/50 starting market. Forecast can seed a market away from 50%, so the worst-case subsidy relative to the initial state depends on that initial probability as well. That is why the current liquidity values are still prototype tuning values rather than economics I would call finished.
+
+## A trade is a database transaction, not a button click
+
+The browser can preview a trade, but it is not allowed to decide the financial result.
+
+In shared mode, the browser sends the market, side and spend to a Postgres RPC. The server checks that the user is authenticated, that the market is open, that its close time has not passed, and that the account has enough play credits. It then locks the relevant market and account state, computes the LMSR execution, updates the market pool, balance and position, inserts the immutable trade and ledger movements, records the new public probability state, and commits the operation as one transaction.
+
+<aside class="project-mechanism">
+  <strong>Binary trade path</strong>
+  <span>Buy YES/NO → client quote → authenticated RPC → market/account row locks → LMSR execution → balance + pool + position + trade + ledger → market history event → one commit</span>
+</aside>
+
+The reason for putting all of that together is atomicity. Suppose the balance was reduced but the position insert failed. Or the shares were created but the pool probability did not move. Or the market moved but there was no ledger record explaining why the account changed. Any of those partial states would make the system difficult to trust.
+
+Inside one database transaction, either the trade becomes true everywhere or it becomes true nowhere.
+
+I also keep the trade itself richer than “user spent 100 credits.” A directional trade records its side, shares, cash delta, average execution price, YES probability before the trade and YES probability after the trade. Database constraints reject directional trade rows that are missing those quote fields or contain probabilities outside `[0,1]`.
+
+That gives later systems — charts, receipts, account history and audits — something concrete to work from instead of trying to reconstruct what probably happened.
+
+## The double-tap problem changed how I think about trading safety
+
+A bug that looks tiny in a normal app can become a financial-state bug in a market.
+
+Imagine someone taps **Place order** twice on an iPhone because the first tap appears slow. Or the browser sends a trade, the database commits it, but the network drops before the success response reaches the phone. The user retries because they think nothing happened.
+
+A disabled button is not enough protection. Browser guards are useful for UX, but the server still has to survive duplicated delivery.
+
+Forecast now gives each trade mutation a **request UUID**. On the browser, identical in-flight mutations are collapsed into one pending promise. More importantly, the request ID is kept across a retry if the trade may have committed but the refresh path failed.
+
+On the database side, Forecast stores completed request IDs in a private replay table keyed by user and request ID. Before executing a mutation, Postgres takes an advisory transaction lock for that user/request pair and checks whether a response already exists. If it does, Forecast returns the original committed response instead of placing another trade.
+
+If the same request ID is reused with a different market, side or amount, the database rejects it.
+
+<aside class="project-mechanism">
+  <strong>Idempotent mutation</strong>
+  <span>One user action → request UUID → server lock → replay lookup → execute once if new → remember response → retries receive the same response</span>
+</aside>
+
+I also revoked authenticated client access to the older non-idempotent buy and sell RPCs. The idempotent wrappers can still call those internal execution functions, but a normal client cannot simply choose the unsafe path.
+
+That last step matters. Adding a safer endpoint does not really protect the invariant if the old unsafe endpoint remains available beside it.
+
+## The chart is not allowed to invent a story
+
+Forecast's probability chart caused another useful design question: **what exactly counts as history?**
+
+A decorative chart is easy. You can draw a smooth line from the opening probability to the current probability and make the product look alive. But if those intermediate points never happened, the chart is fiction.
+
+Forecast now keeps a separate append-only `market_events` stream for public-safe probability history. It records an OPEN point when a market is published, the post-trade probability after every BUY or SELL, and the terminal probability when a market resolves. The public feed contains market state only — no user ID, account balance, stake or position information.
+
+The shared chart is therefore market-wide. It does **not** use the signed-in user's private trade list as a substitute for everybody's history.
+
+That distinction seems obvious once written down, but it is easy to get wrong in a prototype. If I bought YES twice and the chart used only my account history, I might see something that looks internally consistent while completely missing every trade made by other users.
+
+Forecast supports 1D, 1W, 1M and ALL ranges. A range can include a display-only starting anchor so the line begins with the last known probability before the window, and a quiet market can extend flat to the current time. Those display points are explicitly not counted as market events.
+
+The rule is simple: **if the probability did not change because of a real market-state transition, the chart should not pretend that it did.**
+
+## Closing a market is not the same as resolving it
+
+This is one of the biggest conceptual changes I made while building Forecast.
+
+A market can stop accepting trades before the answer is known. So Forecast separates:
+
+`draft → open → closed → resolved / voided`
+
+from the state of the real-world event itself.
+
+For something like a school competition or football match, the real event can have its own lifecycle — scheduled, live, waiting for an official result, final, postponed or cancelled. The market should not collapse all of those states into one boolean.
+
+**Closed** means trading has ended. It does not mean Forecast is allowed to guess the answer.
+
+A binary resolution requires the market close time to have passed, an exact evidence URL, the expected market question, and an authorized operator. Winning shares settle at 1 credit and losing shares at 0. The terminal transaction locks the market and unsettled positions, writes settlement trades, moves positive payouts through the ledger and stores the evidence. If any part fails, everything rolls back together.
+
+That means settlement is an accounting event and an evidence event at the same time.
+
+## Automation can find evidence without being allowed to move balances
+
+I wanted Forecast to be able to notice when official results appear without giving a scraper the authority to settle everybody's positions.
+
+So the **Result Watcher** has deliberately limited power.
+
+It runs against preconfigured approved HTTPS sources and can create a resolution **candidate**. The candidate includes the market, proposed outcome, source URL, observation time, source payload and a fingerprint so repeated observations cannot quietly create duplicate candidates.
+
+The watcher does not change user balances.
+
+A human operator sees the candidate in the resolution queue, checks the evidence, confirms the exact market question and either approves or rejects it. Only the approval path calls the constrained settlement RPC.
+
+<aside class="project-mechanism">
+  <strong>Resolution path</strong>
+  <span>Official source → Result Watcher → evidence candidate → Postgres validation → human review → resolve/void RPC → atomic settlement</span>
+</aside>
+
+I like that separation because automation and authority are different things. A machine can be very good at saying “I found this result on this page.” That does not mean it should automatically be trusted to make an irreversible financial-state transition.
+
+Forecast also uses an allowlist for result-source hosts. A random page cannot become settlement evidence just because it contains the right score.
+
+## VOID is a settlement, not a time machine
+
+Not every event can fairly resolve YES or NO.
+
+A contest can be permanently cancelled. A market can become impossible to determine under its written rules. In that case Forecast can VOID the market.
+
+The obvious first idea is “refund everybody.” That gets complicated once trading exists.
+
+Suppose someone buys YES, later sells half at a profit, uses those realized credits in another market, and only after that the original event becomes unresolvable. Reversing every historical trade would require reaching into already-final transactions and possibly clawing credits back from unrelated markets.
+
+Forecast instead treats VOID as a **50/50 terminal settlement**. Every YES or NO share still held at void time is worth 0.50 credits. Earlier BUY and SELL cashflows stay final.
+
+That preserves transaction finality. It also means a void is not a claim that every trader should end exactly where they started. It is a neutral terminal value for the uncertainty that remains.
+
+This was one of those decisions where accounting design mattered more than what initially sounded “fair” in plain English.
+
+## Authentication is also a state machine
+
+Forecast uses passwordless Supabase authentication. A user requests a magic link, follows it back to Forecast, and the browser exchanges the callback for a Supabase session. The authenticated identity then determines the server-backed profile, account, positions and trades.
+
+I recently spent much longer than I expected debugging that return path.
+
+The problem was not that Supabase failed to authenticate the user. The problem was that Forecast's own navigation/bootstrap code could clean or replace the URL **before the auth module had consumed the callback parameters**. The account existed, but the browser lost the evidence it needed to establish the local session.
+
+The fix was to move callback capture to the earliest part of the HTML bootstrap. Before normal Forecast modules run, the page checks for either the PKCE code or the implicit access/refresh token pair and stores that one-time callback only in page memory. Navigation code knows not to rewrite the URL while an auth callback is present. The Supabase layer consumes the immutable captured value, establishes the session, and only then can normal URL cleanup happen.
+
+That bug taught me something broader: **URLs, browser history and redirects are part of application state.** Treating them as cosmetic navigation can break authentication just as easily as a bad database query can.
+
+## A prediction receipt should remember the trade, not rewrite history
+
+Forecast also creates prediction receipts from completed BUY trades.
+
+The receipt's source of truth is the immutable trade: market, side, execution price, credits committed, shares received, probability before, probability after and execution time. If the market later resolves, Forecast can overlay the final outcome on that receipt, but it does not rewrite the historical trade.
+
+This matters because a user may later add to the position, sell part of it, cash out completely or hold to settlement. None of those later actions should change what the original prediction was.
+
+I like this idea because it turns a market action into something closer to a timestamped claim: **this is the side I took, at this price, when the market believed this.**
+
+## Reputation should not just reward the biggest bankroll
+
+Forecast has a separate reputation experiment called **Forecast Score**.
+
+I did not want total play-credit profit to automatically become “forecasting skill,” because somebody who simply makes larger bets can dominate a P&L leaderboard. Forecast Score instead looks at resolved markets and the price at which the user entered.
+
+A correct position bought when the outcome was cheap gets more credit than a correct position bought when the market already considered it obvious. A confident expensive miss is penalized more heavily than a cheap long-shot miss. Each resolved market has equal weight in the overall score.
+
+There is also an important thing Forecast explicitly does **not** claim: this is not a calibration score.
+
+Buying YES at 23% does not mean the user personally believes the probability is exactly 23%. That is the market price they accepted. A proper calibration metric such as a Brier score would require asking users for their own probability forecast. Forecast does not currently do that, so I would rather say what the score actually measures than give it a more scientific name than it deserves.
+
+## The interface has to teach the mechanism without teaching the formula first
+
+Prediction markets are unfamiliar to a lot of people I want to test Forecast with. If the product only makes sense after somebody has read a paper about LMSR, the product has failed.
+
+So the public explanation starts much simpler:
+
+**What does 62% mean?** It is the current market price for YES.
+
+Think the real chance is higher? Buy YES.
+
+Think it is lower? Buy NO.
+
+A trade can move the price. You can sell before the market closes. Final settlement follows the written rule and evidence.
+
+Only underneath that simple loop do I need the cost function, row locks, idempotency, ledgers and resolution governance.
+
+That layering is something I care about in both the product and this page. The user should be able to understand the action without understanding every mechanism. The builder cannot use that simplicity as an excuse not to understand the mechanism.
+
+Wolfers and Zitzewitz describe prediction-market prices as market-aggregated forecasts. That is the bigger idea Forecast is experimenting with: can local knowledge, disagreement and incentives produce an interesting shared signal around events people here already understand?
+
+<aside class="source-note"><span>Research · </span><a href="https://www.nber.org/papers/w12083" target="_blank" rel="noopener noreferrer">Justin Wolfers & Eric Zitzewitz — Prediction Markets in Theory and Practice ↗</a></aside>
+
+## What Forecast has taught me
+
+Forecast has made me think differently about state.
+
+A normal UI bug can be annoying. In a market system, stale state can mean showing the wrong side, executing the wrong action, drawing a price move that never happened, settling before a source is final, or placing the same trade twice.
+
+That is why so much of the work has moved away from “make the market page look right” and toward invariants:
+
+- the browser is not authoritative for balances;
+- a trade either commits everywhere or nowhere;
+- duplicate delivery must not create duplicate trades;
+- chart history comes from market-wide state transitions;
+- closed is not resolved;
+- evidence detection is not settlement authority;
+- terminal settlement is immutable;
+- public history must not leak private account data.
+
+The UI is still important. But the UI is now sitting on top of rules I can explain.
+
+That is the part of Forecast I am most interested in.
+
+## Where it is now
+
+Forecast is in testing. The current test system has a shared Supabase/Postgres backend, passwordless authentication, play-credit accounts, LMSR trading, cash-out, market-wide probability history, immutable trade/ledger records, idempotent mutation paths, prediction receipts, reputation experiments, operator market tools, and a human-reviewed result-watcher flow.
+
+There are still things I would not call finished. Liquidity tuning is experimental. Wider-launch abuse controls and observability need more hardening. Governance around irreversible settlement would need to become stronger as the stakes of the product increase. Real money would be a completely different legal, security and product problem and is explicitly outside the current prototype.
+
+For now, Forecast is useful to me because building it forces abstract market ideas to become concrete engineering decisions.
+
+A percentage on a screen looks simple.
+
+Making sure that percentage deserves to be there is the interesting part.
+
+<aside class="project-stack">
+  <strong>Built with</strong>
+  <span>JavaScript · Cloudflare Workers/Pages · Supabase Auth · PostgreSQL · Postgres RPCs · LMSR automated market maker · Playwright / Node tests</span>
+</aside>
+
+<section class="references">
+  <h2>References</h2>
+  <p>Robin Hanson — <a href="https://hanson.gmu.edu/mktscore.pdf" target="_blank" rel="noopener noreferrer"><em>Logarithmic Market Scoring Rules for Modular Combinatorial Information Aggregation</em> ↗</a></p>
+  <p>Justin Wolfers & Eric Zitzewitz — <a href="https://www.nber.org/papers/w12083" target="_blank" rel="noopener noreferrer"><em>Prediction Markets in Theory and Practice</em> ↗</a></p>
+  <p>U.S. Commodity Futures Trading Commission — <a href="https://www.cftc.gov/LearnandProtect/PredictionMarkets" target="_blank" rel="noopener noreferrer">Understanding Prediction Markets and Event Contracts ↗</a></p>
+</section>
