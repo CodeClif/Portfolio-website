@@ -1,0 +1,26 @@
+---
+import BaseLayout from './BaseLayout.astro';
+
+const { frontmatter } = Astro.props;
+const base = import.meta.env.BASE_URL;
+const url = (path = '') => path ? `${base}${path.replace(/^\//, '').replace(/\/$/, '')}/` : base;
+---
+<BaseLayout title={frontmatter.title} description={frontmatter.description} articleMode={true}>
+  <article class="article-page article-body project-story">
+    <header class="article-header project-header">
+      <div class="project-kicker">Project · {frontmatter.status || 'Ongoing'}</div>
+      <h1 class="article-title--standard">{frontmatter.title}</h1>
+      <p class="project-summary">{frontmatter.summary}</p>
+      <div class="article-title-rule" aria-hidden="true"></div>
+      <div class="article-meta-row project-meta-row">
+        <div class="article-meta">
+          {frontmatter.location && <span>{frontmatter.location}</span>}
+          {frontmatter.website && <><span>·</span><a href={frontmatter.website} target="_blank" rel="noopener noreferrer">Visit site ↗</a></>}
+        </div>
+        <a class="all-posts" href={url('projects')}>All projects</a>
+      </div>
+    </header>
+    <slot />
+    <nav class="article-footer-nav"><a href={url('projects')}>← Back to projects</a></nav>
+  </article>
+</BaseLayout>
