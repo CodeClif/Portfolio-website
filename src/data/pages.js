@@ -1,0 +1,11 @@
+export const pages = [
+  {slug:'projects',title:'Projects',intro:'Things I am building, testing or have shipped.',items:[{title:'Pumply',desc:'Crowdsourced fuel information for Ghana.'},{title:'Forecast',desc:'An experiment around prediction markets.'}]},
+  {slug:'research',title:'Research',intro:'Questions I am exploring, without pretending every answer is finished.',items:[{date:'2026 Sep 20',title:'Why prediction markets fascinate me'},{date:'2026 Sep 15',title:'What crowdsourcing gets right — and wrong'}]},
+  {slug:'diary',title:'Diary',intro:'Dated thoughts, observations and things I want to remember.',items:[{date:'2026 Sep 22',title:'Thinking about craftsmanship vs perfectionism',href:'posts/craftsmanship-vs-perfectionism'}]},
+  {slug:'ai',title:'AI',intro:'Notes and writing about AI, software and how the way we build is changing.',empty:'Writing will appear here as I publish it.'},
+  {slug:'systems',title:'Systems',intro:'Notes on products, data, incentives and the systems behind them.',items:[{date:'2026 Sep 18',title:"Building products when the data doesn't exist"}]},
+  {slug:'markets',title:'Markets',intro:'Things I am learning about markets, incentives and prediction.',items:[{date:'2026 Sep 20',title:'Why prediction markets fascinate me'}]},
+  {slug:'philosophy',title:'Philosophy',intro:'Thoughts about how I work, what I value and ideas I keep returning to.',items:[{date:'2026 Sep 22',title:'Thinking about craftsmanship vs perfectionism',href:'posts/craftsmanship-vs-perfectionism'}]},
+  {slug:'notes',title:'Notes',intro:'Small things I learn that do not need to become full essays.',items:[{date:'2026 Sep 12',title:'Notes on PostGIS'}]},
+  {slug:'about',title:'About',intro:'A little about me and why this site exists.',paragraphs:["I'm Clif. I like building things and figuring out why things work the way they do.","Most of what you'll find here sits somewhere between software, products, markets, systems, human behaviour and whatever I'm curious about at the time.","This website is my place for projects, research, unfinished thoughts, experiments and the occasional diary entry."]}
+];
