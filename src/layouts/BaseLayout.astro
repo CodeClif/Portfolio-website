@@ -1,7 +1,7 @@
 ---
 import '../styles/global.css';
 
-const { title = 'Clif Code', description = 'Building things, learning out loud.', current = '' } = Astro.props;
+const { title = 'Clif Code', description = 'Building, learning, thinking out loud.', current = '' } = Astro.props;
 const pageTitle = title === 'Clif Code' ? title : `${title} — Clif Code`;
 const base = import.meta.env.BASE_URL;
 const url = (path = '') => path ? `${base}${path.replace(/^\//, '').replace(/\/$/, '')}/` : base;
@@ -25,21 +25,34 @@ const nav = [
   <main class="site-shell">
     <header class="hero">
       <a class="identity" href={url()} aria-label="Clif Code home">
-        <img class="avatar" src="https://radiant-trail-8c3z28a.shipstatic.com/avatar.webp" alt="Clif Code profile" width="104" height="104" />
         <div class="identity-copy">
-          <img class="identity-mark" src={asset('clif-code-mark.svg')} alt="Clif Code" />
-          <p>Building things, learning out loud.</p>
+          <span class="horizontal-mark" aria-hidden="true">
+            <span class="mark-half mark-half-top"><img src={asset('clif-code-mark.svg')} alt="" /></span>
+            <span class="mark-half mark-half-bottom"><img src={asset('clif-code-mark.svg')} alt="" /></span>
+          </span>
+          <p>Building, learning, thinking out loud.</p>
         </div>
       </a>
-      <button class="theme-control" id="themeToggle" type="button" aria-label="Toggle dark mode" aria-pressed="false">
-        <span aria-hidden="true">☼</span><span class="switch"><span class="knob"></span></span><span aria-hidden="true">☾</span>
-      </button>
+
+      <div class="header-actions">
+        <button class="theme-control" id="themeToggle" type="button" aria-label="Toggle dark mode" aria-pressed="false">
+          <span aria-hidden="true">☼</span><span class="switch"><span class="knob"></span></span><span aria-hidden="true">☾</span>
+        </button>
+        <img class="avatar" src="https://radiant-trail-8c3z28a.shipstatic.com/avatar.webp" alt="Clif Code profile" width="104" height="104" />
+      </div>
     </header>
+
     <nav class="topic-nav" aria-label="Topics">
       {nav.map(([label, slug]) => <a href={url(slug)} aria-current={label === current ? 'page' : undefined}>{label}</a>)}
     </nav>
+
     <slot />
-    <footer class="footer">cliffcode.eth</footer>
+
+    <footer class="footer">
+      <a class="footer-stamp" href={url()} aria-label="Clif Code home">
+        <span class="stamp-mark"><img src={asset('clif-code-mark.svg')} alt="" /></span>
+      </a>
+    </footer>
   </main>
 
   <script is:inline>
