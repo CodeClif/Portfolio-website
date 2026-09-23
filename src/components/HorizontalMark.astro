@@ -1,0 +1,13 @@
+---
+const { class: className = '' } = Astro.props;
+const base = import.meta.env.BASE_URL;
+const asset = (path = '') => `${base}${path.replace(/^\//, '')}`;
+---
+<span class:list={['horizontal-calligraphy', className]} aria-label="Clif Code">
+  <svg class="calligraphy-glyph glyph-clif" viewBox="20 30 380 520" role="img" aria-hidden="true">
+    <image href={asset('clif-code-mark.svg')} x="0" y="0" width="413" height="984" />
+  </svg>
+  <svg class="calligraphy-glyph glyph-code" viewBox="20 545 380 430" role="img" aria-hidden="true">
+    <image href={asset('clif-code-mark.svg')} x="0" y="0" width="413" height="984" />
+  </svg>
+</span>
