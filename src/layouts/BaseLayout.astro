@@ -69,19 +69,12 @@ const nav = [
       const cursor = document.getElementById('heroTaglineCursor');
       const text = 'Building things, learning out loud.';
       const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
-      const sessionKey = 'clifcode-tagline-typed';
 
       if (tagline && cursor) {
-        let alreadyTyped = false;
-        try {
-          alreadyTyped = sessionStorage.getItem(sessionKey) === '1';
-        } catch {}
-
-        if (reduceMotion || alreadyTyped) {
+        if (reduceMotion) {
           tagline.textContent = text;
           cursor.hidden = true;
         } else {
-          try { sessionStorage.setItem(sessionKey, '1'); } catch {}
           cursor.hidden = false;
 
           let index = 0;
