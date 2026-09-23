@@ -82,3 +82,42 @@
     margin-top:16px;
   }
 }
+
+
+/* Future-proof article title sizing */
+.article-header h1{
+  text-wrap:balance;
+  max-width:100%;
+}
+.article-header h1.article-title--standard{
+  font-size:2.3rem;
+}
+.article-header h1.article-title--long{
+  font-size:2.12rem;
+}
+.article-header h1.article-title--very-long{
+  font-size:1.96rem;
+}
+
+@media(max-width:600px){
+  .article-header h1.article-title--standard{
+    font-size:2rem;
+  }
+  .article-header h1.article-title--long{
+    font-size:1.72rem;
+    line-height:1.14;
+  }
+  .article-header h1.article-title--very-long{
+    font-size:1.56rem;
+    line-height:1.16;
+  }
+}
+
+@media(max-width:360px){
+  .article-header h1.article-title--long{
+    font-size:1.6rem;
+  }
+  .article-header h1.article-title--very-long{
+    font-size:1.46rem;
+  }
+}
