@@ -1,7 +1,7 @@
 ---
 import '../styles/global.css';
 
-const { title = 'Clif Code', description = 'Building things, learning out loud.', current = '' } = Astro.props;
+const { title = 'Clif Code', description = 'Building things, learning out loud.', current = '', articleMode = false } = Astro.props;
 const pageTitle = title === 'Clif Code' ? title : `${title} — Clif Code`;
 const base = import.meta.env.BASE_URL;
 const url = (path = '') => path ? `${base}${path.replace(/^\//, '').replace(/\/$/, '')}/` : base;
@@ -22,26 +22,36 @@ const nav = [
 </head>
 <body>
   <main class="site-shell">
-    <header class="hero">
-      <a class="identity-name" href={url()} aria-label="Clif Code home">
-        <h1>Clif Code</h1>
-      </a>
+    {articleMode ? (
+      <header class="article-site-chrome">
+        <button class="theme-control article-theme-control" id="themeToggle" type="button" aria-label="Toggle dark mode" aria-pressed="false">
+          <span aria-hidden="true">☼</span><span class="switch"><span class="knob"></span></span><span aria-hidden="true">☾</span>
+        </button>
+      </header>
+    ) : (
+      <>
+        <header class="hero">
+          <a class="identity-name" href={url()} aria-label="Clif Code home">
+            <h1>Clif Code</h1>
+          </a>
 
-      <button class="theme-control" id="themeToggle" type="button" aria-label="Toggle dark mode" aria-pressed="false">
-        <span aria-hidden="true">☼</span><span class="switch"><span class="knob"></span></span><span aria-hidden="true">☾</span>
-      </button>
+          <button class="theme-control" id="themeToggle" type="button" aria-label="Toggle dark mode" aria-pressed="false">
+            <span aria-hidden="true">☼</span><span class="switch"><span class="knob"></span></span><span aria-hidden="true">☾</span>
+          </button>
 
-      <p class="hero-tagline" aria-label="Building things, learning out loud.">
-        <span class="hero-tagline-ghost" aria-hidden="true">Building things, learning out loud.</span>
-        <span class="hero-tagline-live" aria-hidden="true">
-          <span class="hero-tagline-typed" id="heroTaglineTyped"></span><span class="hero-tagline-cursor" id="heroTaglineCursor" hidden></span>
-        </span>
-      </p>
-    </header>
+          <p class="hero-tagline" aria-label="Building things, learning out loud.">
+            <span class="hero-tagline-ghost" aria-hidden="true">Building things, learning out loud.</span>
+            <span class="hero-tagline-live" aria-hidden="true">
+              <span class="hero-tagline-typed" id="heroTaglineTyped"></span><span class="hero-tagline-cursor" id="heroTaglineCursor" hidden></span>
+            </span>
+          </p>
+        </header>
 
-    <nav class="topic-nav" aria-label="Topics">
-      {nav.map(([label, slug]) => <a href={url(slug)} aria-current={label === current ? 'page' : undefined}>{label}</a>)}
-    </nav>
+        <nav class="topic-nav" aria-label="Topics">
+          {nav.map(([label, slug]) => <a href={url(slug)} aria-current={label === current ? 'page' : undefined}>{label}</a>)}
+        </nav>
+      </>
+    )}
     <slot />
     <footer class="footer">cliffcode.eth</footer>
   </main>
