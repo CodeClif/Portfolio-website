@@ -1,0 +1,60 @@
+---
+layout: ../../layouts/ProjectLayout.astro
+title: Pumply
+description: A crowdsourced fuel finder for Ghana, built around a simple question: where can I get fuel, what does it cost, and how recent is that information?
+summary: A crowdsourced fuel finder for Ghana. Nearby stations, recent prices and availability — built around the idea that the useful part is not the map, but trustworthy information.
+status: Building
+location: Ghana
+website: https://pumply.co
+---
+
+Pumply started from a very ordinary problem. If you are driving and need fuel, you usually want to know three things before you get to a station: **is fuel available, how much does it cost, and how recent is that information?** In Ghana, that information is scattered. A station may post a new price on social media, another may not post anything, and by the time a driver finds out the price, they may already be standing at the pump.
+
+The first version of the idea sounded simple: put fuel stations on a map and show their prices. The more I built it, the more I realised the map was the easy part.
+
+## The real product is information
+
+Pumply shows nearby petrol, diesel, LPG and EV stations, with the latest price and availability information we have for each one. Drivers can report prices, add stations that are missing, and help keep the map current. I want the experience to be simple enough that the useful question becomes: **before I buy fuel, can I check Pumply first?**
+
+The difficult part is that fuel data does not arrive neatly from one source. There is no perfect feed I can plug into and trust forever. Prices change. Stations rebrand. Some stations disappear. Two map records can turn out to be the same physical station. A location can be correct while the brand attached to it is wrong. So Pumply cannot just be a directory. It has to keep learning what is actually true on the ground.
+
+## Crowdsourcing, but with a trust layer
+
+The main source of truth in Pumply is the crowd. A driver who is physically near a station can report what they are seeing. That gives the product something a static price list cannot give me: recency.
+
+But “crowdsourced” cannot mean “accept everything.” Reports need limits, proximity checks and ways to deal with conflicting information. I also use prices published by fuel brands as a fallback trust layer when they are available. The goal is not to pretend one source is always correct. It is to combine signals and make the freshest useful information visible.
+
+That changed how I think about product design. A price is not just a number in a database. I also need to care about **who reported it, when they reported it, where they were, what pricing period it belongs to, and what should happen when another source disagrees.**
+
+## The station data is messier than it looks
+
+I seeded Pumply with thousands of fuel-station records, which gave me coverage quickly but also gave me another problem: real-world data is dirty. I have found duplicate stations a few metres apart, old names that still exist on maps, brands that have changed, stations attached to the wrong company, and places where the only honest answer is that I am not sure yet.
+
+That is why a lot of the work behind Pumply is invisible. There are tools for reviewing new stations, corrections, opening hours, brand identities, price history and suspicious records. I spend a surprising amount of time deciding whether two records represent two stations or one station described twice.
+
+None of that sounds as exciting as drawing markers on a map, but it is the difference between a map that looks full and a map a driver can actually trust.
+
+## Building for the next price change
+
+Fuel pricing also made me think about time differently. A price can be correct today and useless later. Pumply keeps price history and separates current pricing periods from old ones so that an old report does not quietly look current forever. I have been building the admin tools around the same idea: make it obvious where coverage is good, where information is stale, and where something needs attention.
+
+This is one reason I keep saying the product is not really about fuel stations. It is about reducing uncertainty before someone makes a small everyday decision.
+
+## What Pumply has taught me
+
+Pumply is probably the project that has taught me the most about the gap between a clean product idea and the system required to make that idea reliable. On the surface, the product is a map. Underneath it are questions about incentives, identity, geography, moderation, data freshness, trust and what to do when the real world refuses to match the database.
+
+I have also learned that the smallest details can affect whether people trust the whole thing. If a station is shown on the wrong side of the road, if a brand logo is wrong, if yesterday's price looks like today's price, or if the app follows the user's location at the wrong moment, the product feels less reliable even when everything else works.
+
+So I keep working on those details. Not because the product needs to be perfect before anybody uses it, but because trust is the product.
+
+## Where it is now
+
+Pumply is still being built. The web app is working, the Android version has been through testing, and I am continuing to improve the station data, reporting flows, pricing tools and the admin system behind them. I am starting with Ghana, but the larger idea is not really Ghana-specific: wherever fuel information is fragmented, there is room for a shared layer that helps drivers know what is happening before they arrive.
+
+I do not know every form Pumply will take yet. I know the problem well enough to keep following it.
+
+<aside class="project-stack">
+  <strong>Built with</strong>
+  <span>React + Vite · MapLibre · Supabase · PostgreSQL/PostGIS · PWA / Android TWA</span>
+</aside>
