@@ -101,6 +101,12 @@ The client checks that first because there is no point making somebody fill out 
   <span>User location → accuracy check → 200 m client proximity gate → Supabase RPC → PostGIS distance check → submission quota → report row → immediate marker update</span>
 </aside>
 
+The 200-metre rule is not there because 200 is a magical number. It is there because **price data is only useful when I can trust that the person reporting it is plausibly at the forecourt**. Without a proximity gate, one person sitting at home could update ten or fifteen stations they have never visited. Once a few bad reports enter the system, the map can still look polished while the information underneath it has become unreliable.
+
+Fuel pricing in Ghana is also unusually structured. The NPA's 2024 pricing guidelines define two pricing windows each month — **1st–15th and 16th–end of month** — and require OMCs/LPGMCs to notify the NPA of revised ex-pump prices. The same guidelines require the advertised billboard price at a retail outlet to match the dispensing-pump price, and say the NPA conducts price-monitoring exercises at outlets. That makes a fuel price more than casual user-generated content; it is a regulated commercial fact that people make purchasing decisions around.
+
+<aside class="source-note"><span>Official · </span><a href="https://npa.gov.gh/wp-content/uploads/2024/03/Ghana-Petroleum-Products-Pricing-Guidelines_26.03.2024-1.pdf" target="_blank" rel="noopener noreferrer">National Petroleum Authority — Petroleum Products Pricing Guidelines 2024 ↗</a></aside>
+
 There is also a quota. Pumply currently allows up to **three price-update actions in 24 hours** for the same user/device identity. I deliberately count a submission action rather than blindly counting database rows. If one user action reports more than one fuel type, those rows can share a submission-attempt ID so one tap does not accidentally consume the entire daily quota.
 
 That is a small implementation detail, but it is the kind of detail that matters when abuse prevention meets normal product behaviour. Rate limiting should stop spam without punishing the legitimate workflow the interface itself created.
@@ -113,7 +119,7 @@ Adding a station is harder than reporting a price because a bad price report can
 
 The app therefore asks two separate geographic questions.
 
-The first is: **is the person actually close enough to the place they are trying to add?** The current product rule is 500 metres for petrol/diesel stations and 1 kilometre for LPG or EV additions. This is a client-side product gate that makes it harder to create imaginary stations from another part of the city.
+The first is: **is the person actually close enough to the place they are trying to add?** The current product rule is 500 metres for petrol/diesel stations and 1 kilometre for LPG or EV additions. That is a Pumply data-integrity rule, not a claim that every one of those numbers is a current legal siting distance. Its purpose is simple: somebody should not be sitting several neighbourhoods away and creating infrastructure they cannot actually see.
 
 The second question is different: **does Pumply already know about a station of this kind nearby?**
 
@@ -124,7 +130,21 @@ I do not use one duplicate radius for every type of infrastructure. The current 
 - EV against EV: **50 m**
 - different fuel classes with no overlap: no automatic duplicate block
 
-The important part is the fuel-class overlap. A petrol station and an EV charger can legitimately be close together. Two EV charging points can also exist much closer together than two traditional fuel stations. So “there is another coordinate nearby” is not enough to call something a duplicate.
+Those numbers have regulatory history behind them, but the history matters. A 2024 geospatial study of fuel and gas stations in Kumasi evaluated stations against the older EPA and Town & Country Planning spacing standards of **500 m between successive fuel stations** and **1,000 m between successive LPG stations**. The researchers found that **97 of 140 fuel stations — 69% — failed the 500 m criterion**, while **4 of 11 gas stations — 36% — failed the 1 km criterion**. Only 18% of the stations in the study met all of the EPA requirements they tested.
+
+<aside class="source-note"><span>Research · </span><a href="https://www.walshmedicalmedia.com/open-access/geospatial-analysis-of-fuel-and-gas-station-distribution-evaluating-the-compliance-and-impact-of-station-siting-on-public-health-a-126518.html" target="_blank" rel="noopener noreferrer">Antwi, Okai, Quaye-Ballard & Ozguven — Geospatial analysis of fuel and gas station distribution in Kumasi ↗</a></aside>
+
+That finding created an important constraint for Pumply: **the database has to describe the city that actually exists, not the city the spacing rule says should exist.** If two legitimate stations in Kumasi are 200 metres apart, I should not hide one because a historic planning standard says they ought to be farther apart. Existing real stations are seeded, audited and preserved. The duplicate rule is mainly a guard on **new submissions**, where it stops a user from creating a second record for a station Pumply already knows about or from casually adding questionable infrastructure into a dense area.
+
+Ghana's planning standards have also changed. The revised LUSPA Zoning Guidelines and Planning Standards published in 2025 use **300 m** as the spacing requirement between petroleum product retail outlets on the same side of a road, with a similar 300 m staggered requirement across a single carriage road and a concentration consideration of no more than three outlets within a 1 km stretch. They specify **500 m** between a petroleum retail outlet and an LPG refilling plant. The LPG planning table in the same document also uses 300 m between LPG stations and 500 m between an LPG plant and a service station.
+
+<aside class="source-note"><span>Current planning standard · </span><a href="https://luspa.gov.gh/wp-content/uploads/2026/02/Revised-Zoning-Guidelines-and-Planning-Standardss.pdf" target="_blank" rel="noopener noreferrer">Land Use and Spatial Planning Authority — Revised Zoning Guidelines and Planning Standards (2025), pp. 52–71 ↗</a></aside>
+
+So Pumply's **500 m petrol/diesel** and **1 km LPG** duplicate radii should be read as deliberately conservative product rules informed by the older Ghanaian siting framework and the messy station landscape we found — not as a statement that those are today's statutory distances. The distinction matters. I would rather block a questionable new duplicate and review it than quietly let the database split one physical station into two identities.
+
+EVs are even more explicit: I do not currently have a Ghanaian regulatory spacing rule that justifies the **50 m EV duplicate radius**. That number is a practical identity heuristic — close enough to catch two records that are probably the same charging location without pretending EV infrastructure behaves like a petrol or LPG forecourt. If the regulatory picture becomes clearer, that rule can change.
+
+The important part is the fuel-class overlap. A petrol station and an LPG facility being near each other does not automatically mean they are duplicate records; the revised planning standard itself treats the separation between those different facility types differently. Two EV charging points can also exist much closer together than two traditional fuel stations. So “there is another coordinate nearby” is not enough to call something a duplicate.
 
 The client can warn early, but the backend checks again. The Edge Function asks a Postgres RPC for nearby candidates, applies the fuel-specific conflict rule, and refuses the insert when a blocking conflict exists. The database also has duplicate protection of its own, so the integrity of the station table does not depend on one React screen behaving correctly forever.
 
@@ -150,7 +170,11 @@ Brand data can tell Pumply what a company says its price is. Community data can 
 
 I keep those ideas separate instead of flattening everything into one magical “correct price.” Brand prices are useful as a fallback and trust layer; station reports preserve their own history and timestamps.
 
-The admin side also works with pricing periods because fuel prices in Ghana often change in windows. That lets me compare what changed from one period to the next without destroying the previous state. History matters because debugging a price system is almost impossible if every update simply overwrites the evidence of what came before.
+The pricing-window model is not something I invented for the admin. NPA's pricing guidelines define two review windows per month, and its downstream statistics are published using the same **1st** and **16th** pricing-window structure. That is why Pumply keeps window history instead of treating every new brand price as an overwrite of the previous number.
+
+<aside class="source-note"><span>Industry data · </span><a href="https://npa.gov.gh/wp-content/uploads/2026/02/Q4-2025-STATISTICAL-BULLETIN.pdf" target="_blank" rel="noopener noreferrer">National Petroleum Authority — Petroleum Downstream Statistical Bulletin, Q4 2025 ↗</a></aside>
+
+That history matters because debugging a price system is almost impossible if every update destroys the evidence of what came before. It also lets the admin answer a more useful question than “what is the price?”: **what changed this window, which source changed it, and what was Pumply showing before?**
 
 ## The admin is part of the product architecture
 
@@ -202,3 +226,12 @@ I do not know every form Pumply will take yet. I know the problem well enough to
   <strong>Built with</strong>
   <span>React + TypeScript · Vite · MapLibre GL · MapTiler · Supabase · PostgreSQL + PostGIS · Edge Functions · PWA / Android TWA</span>
 </aside>
+
+
+<section class="references">
+  <h2>References</h2>
+  <p>Land Use and Spatial Planning Authority — <a href="https://luspa.gov.gh/wp-content/uploads/2026/02/Revised-Zoning-Guidelines-and-Planning-Standardss.pdf" target="_blank" rel="noopener noreferrer"><em>Revised Zoning Guidelines and Planning Standards</em> (2025) ↗</a></p>
+  <p>Richard Boadu Antwi, Stephen Okai, Jonathan Quaye-Ballard & Eren Erman Ozguven — <a href="https://www.walshmedicalmedia.com/open-access/geospatial-analysis-of-fuel-and-gas-station-distribution-evaluating-the-compliance-and-impact-of-station-siting-on-public-health-a-126518.html" target="_blank" rel="noopener noreferrer"><em>Geospatial Analysis of Fuel and Gas Station Distribution: Evaluating the Compliance and Impact of Station Siting on Public Health and Safety in Kumasi, Ghana</em> ↗</a></p>
+  <p>National Petroleum Authority — <a href="https://npa.gov.gh/wp-content/uploads/2024/03/Ghana-Petroleum-Products-Pricing-Guidelines_26.03.2024-1.pdf" target="_blank" rel="noopener noreferrer"><em>Petroleum Products Pricing Guidelines 2024</em> ↗</a></p>
+  <p>National Petroleum Authority — <a href="https://npa.gov.gh/wp-content/uploads/2026/02/Q4-2025-STATISTICAL-BULLETIN.pdf" target="_blank" rel="noopener noreferrer"><em>Petroleum Downstream Statistical Bulletin, Q4 2025</em> ↗</a></p>
+</section>
