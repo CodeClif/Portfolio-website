@@ -1,5 +1,5 @@
 export const pages = [
-  {slug:'projects',title:'Projects',intro:'Things I am building, testing or have shipped.',items:[{title:'Pumply',desc:'Crowdsourced fuel information for Ghana.',href:'projects/pumply'},{title:'Forecast',desc:'An experiment around prediction markets.'}]},
+  {slug:'projects',title:'Projects',intro:'Things I am building, testing or have shipped.',items:[{title:'Pumply',desc:'Crowdsourced fuel information for Ghana.',href:'projects/pumply'},{title:'Forecast',desc:'A play-credit prediction market experiment around African events.',href:'projects/forecast'}]},
   {slug:'research',title:'Research',intro:'Questions I am exploring, without pretending every answer is finished.',items:[{date:'2026 Sep 23',title:'Why prediction markets fascinate me',href:'posts/why-prediction-markets-fascinate-me'},{date:'2026 Sep 15',title:'What crowdsourcing gets right — and wrong'}]},
   {slug:'diary',title:'Diary',intro:'Dated thoughts, observations and things I want to remember.',items:[{date:'2026 Sep 22',title:'Thinking about craftsmanship vs perfectionism',href:'posts/craftsmanship-vs-perfectionism'}]},
   {slug:'ai',title:'AI',intro:'Notes and writing about AI, software and how the way we build is changing.',empty:'Writing will appear here as I publish it.'},
