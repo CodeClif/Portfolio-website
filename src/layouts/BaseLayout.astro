@@ -34,7 +34,7 @@ const nav = [
       <p class="hero-tagline" aria-label="Building things, learning out loud.">
         <span class="hero-tagline-ghost" aria-hidden="true">Building things, learning out loud.</span>
         <span class="hero-tagline-live" aria-hidden="true">
-          <span class="hero-tagline-typed" id="heroTaglineTyped"></span><span class="hero-tagline-cursor" id="heroTaglineCursor"></span>
+          <span class="hero-tagline-typed" id="heroTaglineTyped"></span><span class="hero-tagline-cursor" id="heroTaglineCursor" hidden></span>
         </span>
       </p>
     </header>
@@ -82,6 +82,7 @@ const nav = [
           cursor.hidden = true;
         } else {
           try { sessionStorage.setItem(sessionKey, '1'); } catch {}
+          cursor.hidden = false;
 
           let index = 0;
           const nextDelay = (char) => {
