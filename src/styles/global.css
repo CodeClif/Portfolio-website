@@ -86,7 +86,7 @@
 
 /* Future-proof article title sizing */
 .article-header h1{
-  text-wrap:balance;
+  text-wrap:wrap;
   max-width:100%;
 }
 .article-header h1.article-title--standard{
@@ -104,20 +104,20 @@
     font-size:2rem;
   }
   .article-header h1.article-title--long{
-    font-size:1.72rem;
-    line-height:1.14;
+    font-size:1.58rem;
+    line-height:1.15;
   }
   .article-header h1.article-title--very-long{
-    font-size:1.56rem;
-    line-height:1.16;
+    font-size:1.46rem;
+    line-height:1.17;
   }
 }
 
 @media(max-width:360px){
   .article-header h1.article-title--long{
-    font-size:1.6rem;
+    font-size:1.5rem;
   }
   .article-header h1.article-title--very-long{
-    font-size:1.46rem;
+    font-size:1.38rem;
   }
 }
