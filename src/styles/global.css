@@ -17,7 +17,7 @@
   width:min(820px,100%);
   margin-left:auto;
   margin-right:auto;
-  margin-bottom:50px;
+  margin-bottom:36px;
 }
 .article-header h1{
   margin:0;
@@ -61,7 +61,7 @@
   }
   .article-header{
     width:100%;
-    margin-bottom:42px;
+    margin-bottom:30px;
   }
   .article-header h1{
     font-size:2rem;
