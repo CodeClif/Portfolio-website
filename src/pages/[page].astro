@@ -1,0 +1,22 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { pages } from '../data/pages.js';
+
+const base = import.meta.env.BASE_URL;
+const url = (path = '') => path ? `${base}${path.replace(/^\//, '').replace(/\/$/, '')}/` : base;
+
+export function getStaticPaths(){
+  return pages.map((page)=>({params:{page:page.slug},props:{page}}));
+}
+
+const { page } = Astro.props;
+---
+<BaseLayout title={page.title} description={page.intro} current={page.title}>
+  <section class="page-content">
+    <h1>{page.title}</h1>
+    <p class="page-intro">{page.intro}</p>
+    {page.paragraphs?.map((p)=><p>{p}</p>)}
+    {page.empty && <p>{page.empty}</p>}
+    {page.items && <ul class="simple-list">{page.items.map((item)=><li>{item.date && <time>{item.date}</time>}<a href={item.href?url(item.href):'#'}>{item.title}</a>{item.desc && <p>{item.desc}</p>}</li>)}</ul>}
+  </section>
+</BaseLayout>

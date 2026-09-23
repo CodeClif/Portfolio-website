@@ -1,0 +1,62 @@
+---
+import '../styles/global.css';
+
+const { title = 'Clif Code', description = 'Building things, learning out loud.', current = '' } = Astro.props;
+const pageTitle = title === 'Clif Code' ? title : `${title} — Clif Code`;
+const base = import.meta.env.BASE_URL;
+const url = (path = '') => path ? `${base}${path.replace(/^\//, '').replace(/\/$/, '')}/` : base;
+const nav = [
+  ['Projects','projects'], ['Research','research'], ['Diary','diary'],
+  ['AI','ai'], ['Systems','systems'], ['Markets','markets'],
+  ['Philosophy','philosophy'], ['Notes','notes'], ['About','about']
+];
+---
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="theme-color" content="#ffffff" />
+  <title>{pageTitle}</title>
+  <meta name="description" content={description} />
+</head>
+<body>
+  <main class="site-shell">
+    <header class="hero">
+      <a class="identity" href={url()} aria-label="Clif Code home">
+        <img class="avatar" src="https://radiant-trail-8c3z28a.shipstatic.com/avatar.webp" alt="Clif Code profile" width="104" height="104" />
+        <div class="identity-copy"><h1>Clif Code</h1><p>Building things, learning out loud.</p></div>
+      </a>
+      <button class="theme-control" id="themeToggle" type="button" aria-label="Toggle dark mode" aria-pressed="false">
+        <span aria-hidden="true">☼</span><span class="switch"><span class="knob"></span></span><span aria-hidden="true">☾</span>
+      </button>
+    </header>
+    <nav class="topic-nav" aria-label="Topics">
+      {nav.map(([label, slug]) => <a href={url(slug)} aria-current={label === current ? 'page' : undefined}>{label}</a>)}
+    </nav>
+    <slot />
+    <footer class="footer">cliffcode.eth</footer>
+  </main>
+
+  <script is:inline>
+    (() => {
+      const root = document.documentElement;
+      const button = document.getElementById('themeToggle');
+      const saved = localStorage.getItem('cliffcode-theme');
+      const prefersDark = matchMedia('(prefers-color-scheme: dark)').matches;
+      const setTheme = (theme) => {
+        theme === 'dark' ? root.setAttribute('data-theme', 'dark') : root.removeAttribute('data-theme');
+        const meta = document.querySelector('meta[name="theme-color"]');
+        if (meta) meta.content = theme === 'dark' ? '#171717' : '#ffffff';
+        button?.setAttribute('aria-pressed', String(theme === 'dark'));
+      };
+      setTheme(saved || (prefersDark ? 'dark' : 'light'));
+      button?.addEventListener('click', () => {
+        const next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+        localStorage.setItem('cliffcode-theme', next);
+        setTheme(next);
+      });
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,23 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+const base = import.meta.env.BASE_URL;
+const url = (path = '') => path ? `${base}${path.replace(/^\//, '').replace(/\/$/, '')}/` : base;
+const posts = import.meta.glob('./posts/*.mdx', { eager: true });
+const published = Object.entries(posts).map(([path, mod]) => ({
+  slug: path.split('/').pop().replace('.mdx',''),
+  ...mod.frontmatter
+})).sort((a,b) => +new Date(b.date) - +new Date(a.date));
+const planned = [
+  {date:'2026 Sep 20',title:'Why prediction markets fascinate me',href:'research'},
+  {date:'2026 Sep 18',title:"Building products when the data doesn't exist",href:'systems'},
+  {date:'2026 Sep 15',title:'What crowdsourcing gets right — and wrong',href:'research'},
+  {date:'2026 Sep 12',title:'Notes on PostGIS',href:'notes'}
+];
+---
+<BaseLayout>
+  <section class="latest">
+    <h2>Latest</h2>
+    {published.map((post) => <article class="post-row"><time>{new Intl.DateTimeFormat('en',{year:'numeric',month:'short',day:'2-digit',timeZone:'UTC'}).format(new Date(post.date)).replace(',','')}</time><a href={url(`posts/${post.slug}`)}>{post.title}</a></article>)}
+    {planned.map((post) => <article class="post-row"><time>{post.date}</time><a href={url(post.href)}>{post.title}</a></article>)}
+  </section>
+</BaseLayout>
