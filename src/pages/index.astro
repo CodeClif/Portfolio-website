@@ -8,7 +8,6 @@ const published = Object.entries(posts).map(([path, mod]) => ({
   ...mod.frontmatter
 })).sort((a,b) => +new Date(b.date) - +new Date(a.date));
 const planned = [
-  {date:'2026 Sep 20',title:'Why prediction markets fascinate me',href:'research'},
   {date:'2026 Sep 18',title:"Building products when the data doesn't exist",href:'systems'},
   {date:'2026 Sep 15',title:'What crowdsourcing gets right — and wrong',href:'research'},
   {date:'2026 Sep 12',title:'Notes on PostGIS',href:'notes'}
