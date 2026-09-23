@@ -10,10 +10,11 @@ const dateLabel = new Intl.DateTimeFormat('en-GB', {
   day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC'
 }).format(date);
 ---
-<BaseLayout title={frontmatter.title} description={frontmatter.description} current={frontmatter.type === 'Diary' ? 'Diary' : ''}>
+<BaseLayout title={frontmatter.title} description={frontmatter.description} current={frontmatter.type === 'Diary' ? 'Diary' : ''} articleMode={true}>
   <article class="article-page article-body">
     <header class="article-header">
       <h1>{frontmatter.title}</h1>
+      <div class="article-title-rule" aria-hidden="true"></div>
       <div class="article-meta-row">
         <div class="article-meta">
           <time datetime={frontmatter.date}>{dateLabel}</time>
