@@ -11,8 +11,8 @@ const dateLabel = new Intl.DateTimeFormat('en-GB', {
 
 const titleLength = frontmatter.title.trim().length;
 const titleSizeClass =
-  titleLength > 54 ? 'article-title--very-long' :
-  titleLength > 32 ? 'article-title--long' :
+  titleLength > 46 ? 'article-title--very-long' :
+  titleLength > 30 ? 'article-title--long' :
   'article-title--standard';
 ---
 <BaseLayout title={frontmatter.title} description={frontmatter.description} current={frontmatter.type === 'Diary' ? 'Diary' : ''} articleMode={true}>
