@@ -31,7 +31,11 @@ const nav = [
         <span aria-hidden="true">☼</span><span class="switch"><span class="knob"></span></span><span aria-hidden="true">☾</span>
       </button>
 
-      <p class="hero-tagline">Building things, learning out loud.</p>
+      <p class="hero-tagline" aria-label="Building things, learning out loud.">
+        <span class="hero-tagline-ghost" aria-hidden="true">Building things, learning out loud.</span>
+        <span class="hero-tagline-typed" id="heroTaglineTyped" aria-hidden="true"></span>
+        <span class="hero-tagline-cursor" id="heroTaglineCursor" aria-hidden="true"></span>
+      </p>
     </header>
 
     <nav class="topic-nav" aria-label="Topics">
@@ -59,6 +63,39 @@ const nav = [
         localStorage.setItem('cliffcode-theme', next);
         setTheme(next);
       });
+
+      const tagline = document.getElementById('heroTaglineTyped');
+      const cursor = document.getElementById('heroTaglineCursor');
+      const text = 'Building things, learning out loud.';
+      const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+      if (tagline && cursor) {
+        if (reduceMotion) {
+          tagline.textContent = text;
+          cursor.hidden = true;
+        } else {
+          let index = 0;
+          const nextDelay = (char) => {
+            if (char === ',') return 260;
+            if (char === '.') return 180;
+            if (char === ' ') return 85;
+            return 58 + Math.floor(Math.random() * 28);
+          };
+
+          const typeNext = () => {
+            if (index >= text.length) {
+              setTimeout(() => cursor.classList.add('is-done'), 900);
+              setTimeout(() => { cursor.hidden = true; }, 1500);
+              return;
+            }
+            const char = text[index++];
+            tagline.textContent += char;
+            setTimeout(typeNext, nextDelay(char));
+          };
+
+          setTimeout(typeNext, 420);
+        }
+      }
     })();
   </script>
 </body>
