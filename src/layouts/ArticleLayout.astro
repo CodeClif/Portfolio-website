@@ -9,11 +9,17 @@ const date = new Date(frontmatter.date);
 const dateLabel = new Intl.DateTimeFormat('en-GB', {
   day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC'
 }).format(date);
+
+const titleLength = frontmatter.title.trim().length;
+const titleSizeClass =
+  titleLength > 54 ? 'article-title--very-long' :
+  titleLength > 32 ? 'article-title--long' :
+  'article-title--standard';
 ---
 <BaseLayout title={frontmatter.title} description={frontmatter.description} current={frontmatter.type === 'Diary' ? 'Diary' : ''} articleMode={true}>
   <article class="article-page article-body">
     <header class="article-header">
-      <h1>{frontmatter.title}</h1>
+      <h1 class={titleSizeClass}>{frontmatter.title}</h1>
       <div class="article-title-rule" aria-hidden="true"></div>
       <div class="article-meta-row">
         <div class="article-meta">
