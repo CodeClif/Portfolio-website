@@ -1,6 +1,5 @@
 ---
 import BaseLayout from './BaseLayout.astro';
-import ListenPlayer from '../components/ListenPlayer.astro';
 
 const { frontmatter } = Astro.props;
 const base = import.meta.env.BASE_URL;
@@ -29,7 +28,6 @@ const titleSizeClass =
         </div>
         <a class="all-posts" href={url()}>All posts</a>
       </div>
-      <ListenPlayer minutes={frontmatter.listenMinutes || 5} />
     </header>
     <slot />
     <section class="article-related"><span>Related:</span> <a href={url('projects')}>Projects</a></section>
