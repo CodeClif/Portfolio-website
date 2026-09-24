@@ -1,0 +1,274 @@
+---
+layout: ../../layouts/ArticleLayout.astro
+title: What crowdsourcing gets right — and wrong
+description: Crowdsourcing can make a product more current and more local, but a crowd is not the same thing as a source of truth. Building Pumply taught me to treat community input as evidence that needs rules, provenance and review.
+date: 2026-09-15
+type: Research
+topics:
+  - Systems
+---
+
+Crowdsourcing sounds simple when you describe it from far away.
+
+Let people contribute information. Let enough people participate. The product gets better as the community grows.
+
+That is the optimistic version, and I still believe in it. A person standing at a fuel station can often know something that no centralized database knows yet. They can see that the price changed this morning, that a station is temporarily closed, that a brand changed, or that a place shown on an old map no longer exists.
+
+That kind of local knowledge is powerful.
+
+But building Pumply has made me much less comfortable with another idea that often gets smuggled into the word *crowdsourcing*: that enough contributions somehow become truth automatically.
+
+They do not.
+
+A crowd can give you coverage. It can give you freshness. It can give you observations from places your own team could never visit every day.
+
+It can also give you duplicate records, stale assumptions, coordinated mistakes, spam, confident guesses and ten people repeating the same wrong thing.
+
+The interesting problem is not how to collect more submissions.
+
+It is **how to turn submissions into evidence without pretending every submission deserves the same amount of trust.**
+
+## The crowd is useful because it is already there
+
+Michael Goodchild described volunteered geographic information as a world in which ordinary people become something like distributed geographic sensors.
+
+That framing makes sense to me because it explains what crowdsourcing is good at. A centralized organization can publish a national dataset, but it cannot physically be everywhere at once. A community already is.
+
+<aside class="source-note"><span>Research · </span><a href="https://doi.org/10.1007/s10708-007-9111-y" target="_blank" rel="noopener noreferrer">Michael F. Goodchild — <em>Citizens as sensors: the world of volunteered geography</em> ↗</a></aside>
+
+For Pumply, this matters because fuel information changes in the real world before it changes in a database.
+
+A station may change its price. A forecourt may close for maintenance. A brand sign can change while old map data still carries the previous identity. A station can exist physically even when the available digital records are incomplete.
+
+The person passing that station has an information advantage.
+
+Crowdsourcing lets the product capture that advantage.
+
+This is the part I think crowdsourcing gets very right: **it moves observation closer to the event.**
+
+## But an observation is not the same thing as truth
+
+The danger begins when the product stores every contribution as if it were a final fact.
+
+Imagine someone reports that petrol is GH₵x at a station.
+
+What do I actually know?
+
+I know that a particular user or device submitted a particular value at a particular time for a particular station.
+
+That is already useful.
+
+But it is not identical to knowing that the price is definitely GH₵x.
+
+Maybe the person typed the diesel price into the petrol field. Maybe they were looking at an old sign. Maybe the station had already changed its pump price. Maybe they were not at the station at all. Maybe the report is correct.
+
+The database should not erase those possibilities just because the interface wants one clean number.
+
+This is why I increasingly think of crowdsourced data as a stream of **claims with context**, not a magical shared spreadsheet of facts.
+
+A claim has a source.
+
+A claim has a time.
+
+A claim can disagree with another claim.
+
+A claim can become stale.
+
+A claim can be corroborated.
+
+And sometimes the right system response is not “pick a winner immediately.” It is “we have conflicting evidence.”
+
+## Verifiability matters more than popularity
+
+OpenStreetMap has a principle I keep returning to: data should, as far as reasonably possible, be verifiable. Another mapper should be able to observe the same thing and determine whether the recorded information is true or false.
+
+<aside class="source-note"><span>Mapping principle · </span><a href="https://wiki.openstreetmap.org/wiki/Verifiability" target="_blank" rel="noopener noreferrer">OpenStreetMap Wiki — Verifiability ↗</a></aside>
+
+I like that principle because it gives a crowdsourced system a standard that is stronger than “a lot of people said it.”
+
+Ten people can repeat a rumour.
+
+One person standing in front of a price board can make a directly verifiable observation.
+
+Those are not equivalent forms of evidence.
+
+This is also why I do not think every crowdsourced product should be built around majority voting. Majority agreement is useful in some systems, but it can become misleading when the contributors are all copying the same source, when one location has far more active users than another, or when a mistake becomes popular before anyone checks the real world.
+
+For Pumply, I care more about **where the report came from, when it happened and what it can be checked against** than about pretending every problem can be solved with upvotes.
+
+## Proximity is one way to make a claim more expensive to fake
+
+Pumply does not let a person sit anywhere and update any station.
+
+For a price report, the current rule requires the reporter to be within 200 metres of the station, and the backend checks the distance again with PostGIS. The client check improves the experience; the database check enforces the rule.
+
+That does not prove the report is correct.
+
+It proves something narrower and still useful: the reporter was plausibly close enough to have observed the station.
+
+This is an important distinction.
+
+Good trust systems often do not prove the whole truth at once. They remove specific classes of bad behaviour.
+
+A proximity rule makes remote mass-editing harder.
+
+A submission quota makes spam more expensive.
+
+A timestamp exposes age.
+
+A device or user identity gives repeated behaviour continuity.
+
+A review queue lets unusual additions wait for inspection instead of becoming public infrastructure immediately.
+
+None of those mechanisms creates perfect data. Together they make bad data harder to create accidentally and harder to create at scale.
+
+## Freshness is not one thing
+
+Crowdsourced products often use a single idea of freshness: recent is good, old is bad.
+
+Reality is messier.
+
+If somebody reports that a station is open, that observation can become stale quickly. The same station may close an hour later.
+
+If somebody reports a petrol price, the value may remain useful for much longer. Even if the report is several days old, the price does not become false merely because the clock crossed an arbitrary threshold. It becomes less certain.
+
+If somebody reports the physical existence of a station, that can remain valid for months or years.
+
+So a crowdsourcing system needs to ask: **what kind of fact is this, and how quickly can this kind of fact stop being true?**
+
+That is why Pumply treats availability, price and station identity differently instead of assigning one global expiry time to everything.
+
+Freshness is part of the meaning of the data.
+
+## Provenance is part of the value
+
+The W3C's PROV model exists around a simple idea: information about how data was produced helps people judge its quality, reliability and trustworthiness.
+
+<aside class="source-note"><span>Data model · </span><a href="https://www.w3.org/TR/prov-primer/" target="_blank" rel="noopener noreferrer">W3C — PROV Model Primer ↗</a></aside>
+
+Pumply does not implement the PROV standard directly, but the idea changed how I think about product data.
+
+A value without a source is weaker than the same value with a source.
+
+A value without a timestamp is weaker than the same value with a timestamp.
+
+A station identity with no explanation of how it changed is harder to trust than a station identity with an audit trail showing that it was renamed or rebranded.
+
+This becomes especially important when official and community data disagree.
+
+Suppose a fuel brand publishes a national price and a driver reports a different price at a particular station. I do not want to destroy one piece of evidence because the other one exists.
+
+The brand price tells me what the company says.
+
+The station report tells me what somebody observed at that location.
+
+The useful product question is not always “which database row wins?”
+
+Sometimes it is “which source should the user see for this decision, and how clearly can I explain where it came from?”
+
+## The crowd should not have to understand the trust system
+
+There is a product-design tension here.
+
+The backend can be complicated. It can track provenance, rate limits, distance, report age, conflicts, moderation state and audit history.
+
+The person contributing should still be able to do something as simple as:
+
+**I am here. This is the price I see. Submit.**
+
+That simplicity matters.
+
+If contributing feels like filing a government form, the community will not contribute enough data for the system to become useful.
+
+So the product has to absorb the complexity on the contributor's behalf.
+
+This is one reason I like the idea of a system being strict underneath and simple on top.
+
+The contributor does not need to know how PostGIS calculates their distance. They only need a clear explanation that they have to be near the station.
+
+They do not need to understand the rate-limiting table. They only need fair feedback when they have submitted too many updates.
+
+They do not need to understand provenance modelling. They only need the product to preserve what they reported instead of silently rewriting history.
+
+## More contributors can create more disagreement
+
+There is another thing I underestimated.
+
+Growth does not only create more data.
+
+It creates more conflicts.
+
+Two people can report different prices minutes apart. Two map sources can disagree about a station name. A community report can disagree with a brand's official price. One user can add a station that another user thinks is a duplicate. A real forecourt can change brand while older datasets remain technically correct about the past.
+
+At small scale, you can fix those things manually and call them edge cases.
+
+At larger scale, disagreement becomes a normal operating condition.
+
+That means the system needs workflows for disagreement before the community becomes large enough to overwhelm whoever is moderating it.
+
+This is why Pumply's admin tools matter so much to me now. Pending stations, corrections, station activity, price history and audit records are not back-office decoration. They are the machinery that lets a crowdsourced product keep functioning when people and sources disagree.
+
+## Crowdsourcing should complement authority, not imitate it
+
+I do not want Pumply to pretend the crowd is a regulator, an oil company or an official national registry.
+
+Those sources have different kinds of authority.
+
+The crowd has a different advantage: **observation from the ground.**
+
+That means the strongest system can use both.
+
+Official rules can explain how fuel pricing is structured.
+
+Brand publications can provide a fallback or reference price.
+
+Seed datasets can provide coverage.
+
+Community reports can provide local freshness.
+
+Admin review can reconcile conflicts.
+
+The product becomes useful because the sources are allowed to remain different instead of being flattened into one fake source of truth.
+
+## What crowdsourcing gets right
+
+It gets distribution right.
+
+It gets local knowledge right.
+
+It gets speed right.
+
+It can discover changes faster than a centralized dataset and cover places a small team could never inspect continuously.
+
+It can turn users from passive consumers into participants in the information system.
+
+Those are real advantages.
+
+## What crowdsourcing gets wrong when we design it lazily
+
+It gets truth wrong when we treat repetition as verification.
+
+It gets trust wrong when every submission has the same weight.
+
+It gets freshness wrong when every fact has the same expiry.
+
+It gets moderation wrong when conflict is treated as an exceptional failure instead of a normal state.
+
+And it gets product design wrong when the system pushes all of that complexity back onto the contributor.
+
+The lesson I am taking from Pumply is that crowdsourcing is not the absence of infrastructure.
+
+It needs **more** infrastructure around trust because the inputs are decentralized.
+
+The crowd gives you observations.
+
+The product still has to decide how those observations become information.
+
+That is the part I find most interesting now.
+
+<section class="references">
+  <h2>References</h2>
+  <p>Michael F. Goodchild — <a href="https://doi.org/10.1007/s10708-007-9111-y" target="_blank" rel="noopener noreferrer"><em>Citizens as sensors: the world of volunteered geography</em> ↗</a></p>
+  <p>OpenStreetMap Wiki — <a href="https://wiki.openstreetmap.org/wiki/Verifiability" target="_blank" rel="noopener noreferrer"><em>Verifiability</em> ↗</a></p>
+  <p>W3C — <a href="https://www.w3.org/TR/prov-primer/" target="_blank" rel="noopener noreferrer"><em>PROV Model Primer</em> ↗</a></p>
+</section>
