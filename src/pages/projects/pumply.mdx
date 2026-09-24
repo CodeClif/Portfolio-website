@@ -8,6 +8,12 @@ location: Ghana
 website: https://pumply.co
 ---
 
+import addStation from '../../assets/projects/pumply/add-station.webp';
+import mapClusters from '../../assets/projects/pumply/map-clusters.webp';
+import mapPrices from '../../assets/projects/pumply/map-prices.webp';
+import reportStatus from '../../assets/projects/pumply/report-status.webp';
+import proximityGate from '../../assets/projects/pumply/proximity-gate.webp';
+
 Pumply started from a very ordinary problem. If you are driving and need fuel, you usually want to know three things before you get to a station: **is fuel available, how much does it cost, and how recent is that information?** In Ghana, that information is scattered. A station may post a new price on social media, another may not post anything, and by the time a driver finds out the price, they may already be standing at the pump.
 
 The first version of the idea sounded simple: put fuel stations on a map and show their prices. The more I built it, the more I realised the map was the easy part. The actual problem is building a system that can take messy information from different sources, decide what can be trusted, keep the history, and still return something quickly enough that a driver can open the app and understand the situation in a few seconds.
@@ -15,6 +21,11 @@ The first version of the idea sounded simple: put fuel stations on a map and sho
 ## The real product is information
 
 Pumply shows petrol, diesel, LPG and EV stations around the user, together with the latest price and availability information we have for each station. Drivers can report prices, correct station information and add places that are missing. Brand-published prices can also act as a fallback trust layer when community information is thin.
+
+<figure class="article-figure project-screenshot">
+  <img src={mapPrices.src} alt="Pumply map showing fuel stations and current petrol and diesel prices around Accra" loading="lazy" />
+  <figcaption>The public map mixes station coverage with the latest price information Pumply has for each location.</figcaption>
+</figure>
 
 That sounds like a directory, but I do not think about it as a directory anymore. A directory mainly answers **where is the station?** Pumply also has to answer **what do we currently believe about this station, why do we believe it, and how old is that belief?**
 
@@ -29,6 +40,11 @@ The map is rendered with **MapLibre GL**. I use a MapTiler vector style in produ
 The station markers live in a single **GeoJSON source** inside MapLibre. That source is clustered, and the layers that render clusters, station markers and selected states are created once when the map loads. When the data changes, I update the source with `setData()`; I do not tear down the layers or call `setStyle()` again.
 
 That distinction matters more than it sounds. Recreating a style or rebuilding hundreds of markers during interaction forces the map to repeat expensive work. Pumply keeps one map instance alive, one stable source/layer setup, and changes the data inside it.
+
+<figure class="article-figure project-screenshot">
+  <img src={mapClusters.src} alt="Pumply map showing clustered fuel stations at a wider zoom level" loading="lazy" />
+  <figcaption>At wider zoom levels, nearby stations collapse into clusters. Individual price markers appear as the map gets closer.</figcaption>
+</figure>
 
 <aside class="project-mechanism">
   <strong>Map data path</strong>
@@ -92,9 +108,19 @@ That separation was important for me. **Freshness is not one global number. It d
 
 Crowdsourcing only works if contributing is easy, but accepting every contribution would make the product useless. So a price report goes through several gates.
 
+<figure class="article-figure project-screenshot">
+  <img src={reportStatus.src} alt="Pumply report screen for petrol, diesel and current fuel availability" loading="lazy" />
+  <figcaption>A report is structured around specific fuels, prices and availability rather than a free-form submission.</figcaption>
+</figure>
+
 Pumply first needs a usable location fix. If the app already has a recent enough high-quality location, it can reuse it; otherwise it requests a fresh high-accuracy fix. For reporting, the current client rejects a location whose reported accuracy is too weak, and the user must be within **200 metres** of the station.
 
 The client checks that first because there is no point making somebody fill out a report and only then telling them they are too far away. But when the report reaches PostgreSQL, the backend calculates the distance again with PostGIS. If it is over 200 metres, the report is rejected there too.
+
+<figure class="article-figure project-screenshot">
+  <img src={proximityGate.src} alt="Pumply blocking a price update because the reporter is too far from the station" loading="lazy" />
+  <figcaption>The proximity gate in the real reporting flow. Remote updates are blocked before submission.</figcaption>
+</figure>
 
 <aside class="project-mechanism">
   <strong>Price report path</strong>
@@ -116,6 +142,11 @@ The same reporting rules also have to work for stations that originally came fro
 ## Adding a station needs a different set of rules
 
 Adding a station is harder than reporting a price because a bad price report can be replaced; a bad station can pollute the map itself.
+
+<figure class="article-figure project-screenshot">
+  <img src={addStation.src} alt="Pumply Add Station screen with map pin placement, station details and fuel types" loading="lazy" />
+  <figcaption>Adding a station starts with its location, then its identity and available fuels.</figcaption>
+</figure>
 
 The app therefore asks two separate geographic questions.
 
