@@ -8,348 +8,85 @@ topics:
   - Systems
 ---
 
-A lot of software starts with an assumption that the data already exists somewhere.
-
-You build the interface, connect an API, store a few things in your own database, and the product begins to take shape. The difficult work is usually around the experience: what to show, how to rank it, how fast it loads, what the user can do with it.
-
-But some products start one layer earlier.
-
-The information you need is incomplete, scattered across different places, out of date, contradictory, or simply not available in a form a computer can consume. There is no API you can pay for and be done. There is no single database you can call the source of truth. Sometimes there is not even agreement about what the truth currently is.
-
-That changes the kind of product you are building.
-
-You are no longer just building software on top of data. **You are building the system that produces the data too.**
-
-Pumply made this very obvious to me.
+A lot of software starts with an assumption that the data already exists somewhere. You build the interface, connect an API, store a few things in your own database, and most of the difficulty sits in the experience: what to show, how to rank it, how fast it loads and what the user can do with it. But some products start one layer earlier. The information you need is incomplete, scattered across different places, out of date, contradictory, or simply not available in a form a computer can consume. There is no API you can pay for and be done, and sometimes there is not even agreement about what the truth currently is. That changes the kind of product you are building. You are no longer just building software on top of data; **you are building the system that produces the data too.** Pumply made this very obvious to me.
 
 ## The API-shaped hole
 
-The first version of a product idea usually exists in your head as a clean interface.
+The first version of a product idea usually exists in your head as a clean interface. For Pumply, the clean version was obvious: open the map, see nearby fuel stations, see what petrol or diesel costs, and know whether a station is available before you get there. The engineering question was where to get the data. There are several partial answers. OpenStreetMap has thousands of mapped stations. Fuel companies sometimes publish prices. Regulators publish pricing information and rules. Drivers know what they saw five minutes ago. Google Maps may know a place exists. A physical station sign may show a rebrand months before a public dataset catches up. None of those sources answers the whole question.
 
-For Pumply, the clean version was obvious: open the map, see nearby fuel stations, see what petrol or diesel costs, and know whether the station is available before you get there.
-
-The obvious engineering question was: where do I get the data?
-
-There are several partial answers. OpenStreetMap has thousands of mapped fuel stations. Fuel companies sometimes publish prices. Regulators publish pricing information and rules. Drivers know what they saw at a station five minutes ago. Google Maps may know a place exists. A station's physical sign may tell you that a brand changed months before a public dataset catches up.
-
-None of those sources answers the whole question.
-
-This is the first pattern I have learned: **when the data does not exist, it often means the data exists in pieces.** The job is not necessarily to create every fact from zero. The job is to design a system that can combine imperfect evidence without pretending the evidence is cleaner than it is.
+The first pattern I learned is that **when the data does not exist, it often means the data exists in pieces.** The job is not necessarily to create every fact from zero. It is to design a system that can combine imperfect evidence without pretending the evidence is cleaner than it is.
 
 ## Coverage and correctness are different problems
 
-I used OpenStreetMap to seed Pumply with thousands of station records because an empty map creates a brutal cold-start problem. Nobody wants to contribute to a product that looks empty, but the product cannot become useful without contributions.
+I used OpenStreetMap to seed Pumply with thousands of station records because an empty crowdsourced map has a brutal cold-start problem: nobody wants to contribute to a product that looks empty, but the product cannot become useful without contributions. Seeding gave me coverage quickly. It did not give me truth. A mapped point can be in the right physical location while the brand is stale; two records can describe the same forecourt; a generic name can hide the local identity people actually use; a station can close, reopen, rebrand, add LPG, remove a service or simply have been mapped incorrectly.
 
-Seeding gave me coverage quickly.
-
-It did not give me truth.
-
-A mapped point can be in the right physical location while the brand name is stale. Two records can describe the same forecourt. One record can have a generic name while another contains the local name people actually use. A station can close, reopen, rebrand, add LPG, remove a service, or simply have been mapped incorrectly in the first place.
-
-OpenStreetMap's own mapping guidance is built around **verifiability**: another mapper should, as far as reasonably possible, be able to observe the same thing and verify the recorded data. That is a useful principle because it treats a map as an evolving set of observations, not a declaration that every stored value is permanently correct.
+OpenStreetMap's own guidance is built around **verifiability**: another mapper should, as far as reasonably possible, be able to observe the same thing and verify the recorded data. I like that principle because it treats a map as an evolving set of observations rather than a declaration that every stored value is permanently correct.
 
 <aside class="source-note"><span>Mapping principle · </span><a href="https://wiki.openstreetmap.org/wiki/Verifiability" target="_blank" rel="noopener noreferrer">OpenStreetMap Wiki — Verifiability ↗</a></aside>
 
-This changed how I think about imports.
-
-An imported row is not automatically a canonical object. It is evidence that an object probably exists and that someone described it in a certain way at a certain time.
-
-That is a much safer starting point.
+That changed how I think about imports. An imported row is not automatically a canonical object. It is evidence that an object probably exists and that someone described it in a certain way at a certain time. That is a much safer starting point.
 
 ## A database row can hide too much certainty
 
-Databases make uncertainty easy to forget.
-
-A row might say:
-
-`brand = "GOIL"`
-
-That looks absolute.
-
-But the real state might be closer to:
+Databases make uncertainty easy to forget. A row might say `brand = "GOIL"`, which looks absolute, while the real state may be closer to this:
 
 > OpenStreetMap says GOIL. A driver says the sign now says Star Oil. The coordinates match the same forecourt. The old record has years of price history. An official current source has not been found yet.
 
-Those are completely different representations of knowledge.
-
-The first stores a value. The second stores the **reason for believing the value**.
-
-This is where provenance becomes important. The W3C's PROV model describes provenance as information about the entities, activities and people involved in producing a piece of data, specifically because that history helps people assess quality, reliability and trustworthiness.
+Those are very different representations of knowledge. The first stores a value; the second stores the **reason for believing the value**. This is where provenance becomes important. The W3C's PROV model describes provenance as information about the entities, activities and people involved in producing a piece of data because that history helps people assess quality, reliability and trustworthiness.
 
 <aside class="source-note"><span>Data model · </span><a href="https://www.w3.org/TR/prov-primer/" target="_blank" rel="noopener noreferrer">W3C — PROV Model Primer ↗</a></aside>
 
-Pumply does not implement the W3C PROV specification directly, but the underlying idea is useful: **source is part of the data.**
-
-A fuel price without a timestamp and source is much less useful than the same price with them. A station correction without knowing whether it came from an admin audit, a nearby user or an imported dataset is harder to evaluate later. A rebrand without history makes it look as though the old identity never existed.
-
-This is why I increasingly prefer append, supersede and audit over silently overwriting important facts.
+Pumply does not implement W3C PROV directly, but the underlying idea is useful: **source is part of the data.** A fuel price without a timestamp and source is much less useful than the same price with them. A correction without knowing whether it came from an admin audit, a nearby user or an imported dataset is harder to evaluate later. A rebrand without history makes it look as though the old identity never existed. This is why I increasingly prefer append, supersede and audit over silently overwriting important facts.
 
 ## Observations and canonical state should not be the same thing
 
-One mistake I could have made early was letting every report directly mutate the main station record.
+One easy architecture would let every report directly mutate the main station record: user says the station is Star Oil, change the brand; user reports a price, replace the price; someone says the station is closed, flip a boolean. That works until two people disagree. A more useful mental model is to separate **observations** from **canonical state**. An observation says, “at this time, this source claimed this thing.” Canonical state says, “given the evidence we currently have, this is what the product should show.” They are related but not identical.
 
-User says the station is Star Oil? Change the brand.
-
-User says petrol is GH₵x? Replace the price.
-
-Someone says the station is closed? Flip a boolean.
-
-That architecture is simple until two people disagree.
-
-A more useful mental model is to separate **observations** from **canonical state**.
-
-An observation says:
-
-> At this time, this source claimed this thing.
-
-Canonical state says:
-
-> Given the evidence we currently have, this is what the product should show.
-
-Those are related, but they are not identical.
-
-A community price report can become the current displayed price while its original report remains in history. A correction can enter a pending workflow before changing the canonical station. A brand-wide price can exist as a fallback without pretending somebody physically observed it at every forecourt.
-
-This separation gives the system somewhere to put disagreement.
-
-Without it, disagreement usually becomes overwriting.
+A community price report can become the current displayed price while its original report remains in history. A correction can enter a pending workflow before changing the station. A brand-wide price can exist as a fallback without pretending somebody physically observed it at every forecourt. This separation gives the system somewhere to put disagreement; without it, disagreement usually becomes overwriting.
 
 ## Freshness is part of the type
 
-Another thing I learned is that "fresh data" is not one concept.
+Another thing I learned is that “fresh data” is not one concept. Different facts decay at different speeds. A station's coordinates may stay correct for years, its brand identity may stay correct for months and then suddenly change, a petrol price may stay valid until the next pricing change, and an “open right now” observation can become useless within hours. If I store all of those fields with one generic `updated_at`, I lose information about how the product should interpret them.
 
-Different facts decay at different speeds.
-
-A station's coordinates may stay correct for years.
-
-Its brand identity might stay correct for months and then suddenly change.
-
-A petrol price can stay valid until the next pricing change.
-
-An "open right now" observation can become useless within hours.
-
-If I store all of those fields with one generic `updated_at`, I lose information about how the product should interpret them.
-
-This is why I now think of freshness as part of the data type.
-
-A price should carry the time and pricing context that make it interpretable. Availability should have a much shorter confidence window. A station identity change should preserve history because a rebrand does not mean the old record was fabricated; it means the world changed.
-
-This sounds like backend detail, but it changes the interface. The UI can only communicate uncertainty honestly if the database preserves enough context to know that uncertainty exists.
+I now think of freshness as part of the data type. A price should carry the time and pricing context that make it interpretable; availability should have a much shorter confidence window; a station identity change should preserve history because a rebrand does not mean the old record was fabricated, it means the world changed. This sounds like backend detail, but it changes the interface. The UI can only communicate uncertainty honestly if the database preserves enough context to know that uncertainty exists.
 
 ## Crowdsourcing is a sensing system
 
-I used to think about crowdsourcing mainly as a feature: users can contribute data.
+I used to think about crowdsourcing mainly as a feature: users can contribute data. I now think about it more like a distributed sensing system. Each user is another sensor, except human sensors have incentives, memory, mistakes, GPS uncertainty and sometimes bad intentions. The design question is therefore not merely “how do I let users submit things?” It is **what evidence should a submission contain, what makes the observation plausible, and how much authority should one observation have?**
 
-I now think about it more like a distributed sensing system.
+For a Pumply price report, location matters. If somebody can sit at home and update fifteen stations across Accra, the contribution system is easy to use but the resulting information becomes fragile. So the app checks whether the user is physically near the station, checks GPS quality, limits how many update actions one user or device can make, and repeats important validation on the backend. The client-side check is for experience; the backend check is for integrity. If a rule protects the truth of shared data, it should not depend only on JavaScript running in a browser somebody controls.
 
-Each user is another sensor, except human sensors have incentives, memory, mistakes, GPS uncertainty and sometimes bad intentions.
+## Missing data creates incentive problems
 
-That means the design question is not merely "how do I let users submit things?"
+Once users can create data, you have to think about what the easiest behaviour produces. Reward people purely for the number of reports and they may optimise for volume instead of accuracy. Let anyone add stations from anywhere and you reduce friction while making imaginary or duplicate stations cheap to create. Accept every correction immediately and you improve update speed while allowing one bad correction to rewrite an object that other history depends on. The goal is not maximum contribution; it is **useful contribution**, which often means adding friction exactly where bad data is cheap to create and expensive to repair.
 
-It is:
-
-**What evidence should a submission contain, what makes the observation plausible, and how much authority should one observation have?**
-
-For a Pumply price report, location matters. If somebody can sit at home and update fifteen stations across Accra, the contribution system is easy to use but the resulting information becomes fragile. So the app checks whether the user is physically near the station, checks GPS quality, limits how many update actions one user/device can make, and repeats important validation on the backend.
-
-The client-side check is for experience.
-
-The backend check is for integrity.
-
-I keep coming back to that distinction. If a rule protects the truth of shared data, it should not depend only on JavaScript running in a browser somebody controls.
-
-## Missing data creates incentives problems
-
-Once users can create data, you also have to think about what the easiest behaviour produces.
-
-Imagine rewarding people purely for the number of station reports they submit. You might get more reports. You might also get people optimising for volume rather than accuracy.
-
-Imagine making Add Station available from anywhere. You reduce friction, but you also make it cheap to create imaginary or duplicate stations.
-
-Imagine immediately accepting every station correction because moderation feels slow. You improve update speed, but one bad correction can rewrite an object that other history depends on.
-
-The system is full of these tradeoffs.
-
-The goal is not maximum contribution. The goal is **useful contribution**.
-
-That often means adding friction exactly where bad data is cheap to create and expensive to repair.
-
-## Reconciliation is different from deduplication
-
-"Remove duplicates" sounds like a basic database cleanup task.
-
-Real-world entities make it much harder.
-
-Two points 40 metres apart might be duplicates.
-
-Or they might be two stations on opposite sides of a highway.
-
-Two stations with different brands might be separate businesses.
-
-Or one might be the old identity of the other after a rebrand.
-
-Two records with nearly identical names might be one station imported twice.
-
-Or they might be branches that genuinely use the same area name.
-
-So I do not think of station cleanup as pure deduplication anymore. It is **entity resolution**: deciding which records refer to the same real-world thing.
-
-That decision can use distance, fuel type, road position, brand, name, history and outside evidence. Sometimes the correct answer is still "not sure."
-
-The important part is allowing the system to keep that uncertainty instead of forcing every ambiguous pair into either duplicate or definitely separate.
+This is also why reconciliation is different from simple deduplication. Two points 40 metres apart might be duplicates, or they might be two stations on opposite sides of a highway. Two stations with different brands might be separate businesses, or one might be the old identity of the other after a rebrand. Two records with nearly identical names might be one station imported twice, or genuinely distinct branches that use the same area name. Station cleanup is therefore closer to **entity resolution**: deciding which records refer to the same real-world thing using distance, fuel type, road position, brand, name, history and outside evidence. Sometimes the correct answer is still “not sure,” and the system needs room for that uncertainty.
 
 ## Stable identity matters more than clean-looking rows
 
-A related lesson is that deleting and recreating records can make the database look cleaner while making the system worse.
+Deleting and recreating records can make a database look cleaner while making the system worse. Suppose a station changes from one fuel brand to another. The easiest implementation is to archive the old row and create a new station with the new brand, but if it is physically the same station, the new UUID disconnects reports, corrections, opening hours and other relationships from the object users still experience as the same place. Where possible, I prefer preserving the station identity and changing the attributes around it. The station is the enduring entity; the brand is a property that can change. That distinction starts to matter as soon as the system has history.
 
-Suppose a station changes from one fuel brand to another.
-
-The easiest implementation is:
-
-1. archive the old row;
-2. create a new station with the new brand.
-
-But if it is physically the same station, that new UUID disconnects history. Reports, corrections, opening hours and other relationships now point to a historical object that the product treats as unrelated.
-
-Where possible, I prefer preserving the station identity and changing the attributes around it.
-
-The station is the enduring entity.
-
-The brand is a property that can change.
-
-This is a small data-modelling distinction, but it matters once the system has history.
-
-## The admin interface becomes part of the data pipeline
-
-When data is messy, an admin panel is not just an internal CRUD dashboard.
-
-It becomes part of the truth-production system.
-
-The important admin questions are not only:
-
-> How do I edit this row?
-
-They are:
-
-> Why is this record here?
-
-> What evidence changed it?
-
-> Is there another nearby station that might be the same place?
-
-> What was the previous value?
-
-> Is the price missing, stale or simply outside the current pricing window?
-
-> If I approve this correction, what history am I preserving?
-
-That is why Pumply's admin side keeps growing into areas like station inboxes, corrections, price history, activity, brand pricing, report ranges and audit trails.
-
-At first that felt like supporting software around the real product.
-
-I no longer see it that way.
-
-If the consumer product depends on maintaining a trustworthy model of the real world, then the tools used to repair that model are part of the core architecture.
+The same logic is why the admin interface has become part of Pumply's data pipeline rather than a secondary CRUD dashboard. The useful admin questions are not only “how do I edit this row?” but “why is this record here?”, “what evidence changed it?”, “is there another nearby station that might be the same place?”, “what was the previous value?” and “if I approve this correction, what history am I preserving?” Pending stations, corrections, price history, activity, brand pricing, report ranges and audit trails are not supporting software around the real product. If the public product depends on maintaining a trustworthy model of the real world, then the tools used to inspect and repair that model are part of the core architecture.
 
 ## Sometimes the product has to show "we don't know"
 
-There is a strong temptation in software to always return an answer.
-
-Users like certainty. Interfaces look cleaner when every field is filled. Product screenshots look better when nothing says "unknown."
-
-But invented certainty is worse than missing data.
-
-If I do not know whether a station is still active, I would rather model that uncertainty than quietly guess.
-
-If a price is old, I would rather show its age than make it look current.
-
-If two station records might be duplicates but the evidence is weak, I would rather leave them for review than merge two real businesses because an algorithm wanted a clean result.
-
-This is one of the places where product design and data modelling meet. The schema needs a way to represent uncertainty, and the interface needs a way to communicate it without becoming confusing.
+There is a strong temptation in software to always return an answer because interfaces look cleaner when every field is filled. But invented certainty is worse than missing data. If I do not know whether a station is still active, I would rather model that uncertainty than quietly guess. If a price is old, I would rather show its age than make it look current. If two station records might be duplicates but the evidence is weak, I would rather leave them for review than merge two real businesses because an algorithm wanted a clean result. This is where product design and data modelling meet: the schema needs a way to represent uncertainty, and the interface needs a way to communicate it without becoming confusing.
 
 ## The product can create the dataset it needs
 
-There is a more optimistic side to all of this.
+There is a more optimistic side to all of this. When the dataset you need does not exist, the product itself can become the mechanism that gradually creates it. Seed data gives initial coverage; users add current observations; official and brand sources add another layer; admins reconcile conflicts; history preserves what changed; proximity rules reduce low-quality submissions; and the public interface gives people a reason to contribute because they receive something useful back. Over time the product is not only consuming information, it is producing a structured record that did not exist before.
 
-When the dataset you need does not exist, the product itself can become the mechanism that gradually creates it.
-
-The seed data gives coverage.
-
-Users add current observations.
-
-Official and brand sources add another layer.
-
-Admins reconcile conflicts.
-
-History preserves what changed.
-
-Proximity rules reduce low-quality submissions.
-
-The public interface gives people a reason to contribute because they receive something useful back.
-
-Over time, the product is not only consuming information. It is producing a structured record that did not exist before.
-
-That creates a feedback loop:
-
-`useful initial coverage → users → observations → reconciliation → better data → more useful product`
-
-The difficult part is getting the first half of that loop working before the dataset is good enough to make the product feel finished.
+That creates a feedback loop: `useful initial coverage → users → observations → reconciliation → better data → more useful product`. The difficult part is getting the first half of that loop working before the dataset is good enough to make the product feel finished.
 
 ## Building in places with weak APIs changes the architecture
 
-I think this matters beyond Pumply and beyond Ghana.
+I think this matters beyond Pumply and beyond Ghana. A lot of product advice assumes mature digital infrastructure: clean addresses, reliable public APIs, machine-readable government data, consistently updated business directories, well-documented platforms and stable identifiers shared between systems. When those assumptions are weaker, you cannot simply copy the architecture of a product built somewhere else. You may need more local verification, manual review where another product can automate, your own identifiers because no universal one exists, and much more provenance because sources disagree. You may need to treat WhatsApp posts, official PDFs, physical signs and community observations as inputs into the same system. That is not necessarily bad engineering; sometimes it is the engineering required by the environment.
 
-A lot of product advice assumes mature digital infrastructure: clean addresses, reliable public APIs, machine-readable government data, consistently updated business directories, well-documented platforms, and stable identifiers shared between systems.
-
-When those assumptions are weaker, you cannot simply copy the architecture of a product built somewhere else.
-
-You may need more local verification.
-
-You may need manual review where another product can automate.
-
-You may need to treat WhatsApp posts, official PDFs, physical signs and community observations as inputs into one system.
-
-You may need to build your own identifiers because no universal one exists.
-
-You may need to preserve much more provenance because sources disagree.
-
-That is not necessarily bad engineering.
-
-Sometimes it is the engineering required by the environment.
-
-## What I would do earlier now
-
-If I started another product with this kind of data problem, I would ask these questions much earlier:
-
-**What exactly is an observation?** Not what is the final row — what raw thing did somebody or something observe?
-
-**Where did it come from?** User, public dataset, organization, import, admin, sensor?
-
-**When was it true?** Not just when did I write it to PostgreSQL.
-
-**How does it become canonical?** Does one report update the product immediately? Does it need agreement? Does it need review?
-
-**How does it expire?** Does this fact decay in ten minutes, two weeks or never unless contradicted?
-
-**How do I reverse a bad decision without deleting history?**
-
-**What identity survives when attributes change?**
-
-Those questions feel more important to me now than choosing the frontend framework.
+If I started another product with this kind of data problem, I would ask much earlier: what exactly is an observation? Where did it come from? When was it true? How does it become canonical? How does it expire? How do I reverse a bad decision without deleting history? What identity survives when attributes change? Those questions now feel more important to me than choosing the frontend framework.
 
 ## The database is part of the product
 
-The main thing Pumply changed in my thinking is that data quality is not a cleanup phase that happens after the application is built.
-
-When the product depends on information nobody already maintains for you, **the information system is the product.**
-
-The map, search, filters and station sheets are how users interact with that system. But underneath them is a process for collecting evidence, checking it, reconciling conflicts, preserving history and deciding what deserves to be shown as current.
-
-A clean interface can hide all of that work.
-
-It probably should.
-
-But the builder still has to do it.
+The main thing Pumply changed in my thinking is that data quality is not a cleanup phase that happens after the application is built. When the product depends on information nobody already maintains for you, **the information system is the product.** The map, search, filters and station sheets are how users interact with that system, but underneath them is a process for collecting evidence, checking it, reconciling conflicts, preserving history and deciding what deserves to be shown as current. A clean interface can hide all of that work, and it probably should. But the builder still has to do it.
 
 <section class="references">
   <h2>References</h2>
