@@ -19,6 +19,12 @@ There is a romantic version of programming where the value of the work is measur
 
 Speed is the obvious benefit of AI coding, but I think the more important change is **ambition**. There are things I now attempt that I probably would not have attempted at all a few years ago: a crowdsourced fuel map with geospatial rules, moderation and pricing history; a prediction market with automated market making, idempotent trades, settlement evidence and market-wide probability history; an admin system that has to reconcile messy real-world records instead of just displaying clean database rows. The important part is not that an AI can produce a React component for any of those things. It is that I can keep enough of the product, database, UX, security and deployment context in motion to keep pushing the system forward. AI lowers the cost of exploring a problem, and that makes previously unrealistic ideas feel reachable.
 
+This is not the same as saying AI always makes developers faster. DORA's 2025 research, based on nearly 5,000 technology professionals, found very broad adoption and strong self-reported productivity gains. METR found something different in a narrower setting: experienced open-source developers working in mature repositories they already knew took 19% longer on assigned tasks when using early-2025 AI tools. I like putting those results next to each other because they make the point better than a simple pro-AI or anti-AI story. The value depends on the task, the codebase, the workflow and how much verification the work needs.
+
+<aside class="source-note"><span>Research · </span><a href="https://dora.dev/research/2025/dora-report/" target="_blank" rel="noopener noreferrer">DORA — State of AI-assisted Software Development 2025 ↗</a></aside>
+
+<aside class="source-note"><span>Research · </span><a href="https://metr.org/blog/2025-07-10-early-2025-ai-experienced-os-dev-study/" target="_blank" rel="noopener noreferrer">METR — Measuring the impact of early-2025 AI on experienced open-source developer productivity ↗</a></aside>
+
 ## "Vibe coding" describes a real failure mode
 
 I joke about vibe coding because there is something accurate inside the joke. You can now describe what you want, watch code appear, click around until the interface looks right and keep moving without understanding much of what happened underneath. That is genuinely possible, and it is genuinely dangerous. The problem is not that AI wrote the code; the problem is that **nobody is taking responsibility for the system**. If I cannot explain why a database rule exists, I do not want the rule to survive just because the model generated it. If authentication breaks, I want to know what state transition failed. If a map behaves strangely, I want to know whether the problem is rendering, geography, stale data, browser state or product logic. If a trade can be submitted twice, a disabled button is not enough; I need to understand why the backend is or is not idempotent. Those are not typing problems. They are understanding problems.
@@ -52,3 +58,10 @@ I do not think coding is disappearing. I think the boundary of what matters is m
 ## What I actually enjoy
 
 When I think about why I like building things, I do not think the answer was ever typing. It was seeing an idea become interactive, watching the first real data appear, finding the bug that made no sense, realizing the database model was wrong and rebuilding it, seeing someone else use the thing and immediately understanding a problem I had missed, and making a complicated system feel simple from the outside. AI gives me more time inside that part of the work. That is why I am excited about it: not because I want to avoid understanding software, but because I want to spend more of my energy understanding **the thing I am trying to build**. The real joy was never typing. It was turning an idea into something alive.
+
+
+<section class="references">
+  <h2>References</h2>
+  <p>DORA / Google — <a href="https://dora.dev/research/2025/dora-report/" target="_blank" rel="noopener noreferrer"><em>State of AI-assisted Software Development 2025</em> ↗</a></p>
+  <p>Joel Becker, Nate Rush, Beth Barnes & David Rein / METR — <a href="https://metr.org/blog/2025-07-10-early-2025-ai-experienced-os-dev-study/" target="_blank" rel="noopener noreferrer"><em>Measuring the Impact of Early-2025 AI on Experienced Open-Source Developer Productivity</em> ↗</a></p>
+</section>
