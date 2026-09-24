@@ -1,0 +1,38 @@
+name: Rebuild Pumply image assets
+
+on:
+  push:
+    branches: ["fix/pumply-images-recovery-20260924"]
+    paths:
+      - ".image-parts/READY"
+
+permissions:
+  contents: write
+
+jobs:
+  rebuild:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Rebuild complete WebP files
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in add-station map-clusters map-prices proximity-gate report-status; do
+            cat ".image-parts/$name"/part-* | tr -d '\n\r' | base64 --decode > "src/assets/projects/pumply/$name.webp"
+          done
+          sha256sum -c .image-parts/SHA256SUMS
+
+      - name: Commit repaired assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/assets/projects/pumply/*.webp
+          git rm -r .image-parts
+          git commit -m "Fix Pumply screenshots with complete image assets"
+          git push
