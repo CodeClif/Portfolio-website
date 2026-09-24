@@ -1,0 +1,167 @@
+---
+layout: ../../layouts/ArticleLayout.astro
+title: Notes on PostGIS
+description: The small set of PostGIS ideas that made maps click for me: geography, distance queries, spatial indexes and why "nearby" should be enforced in the database.
+date: 2026-09-12
+type: Notes
+topics:
+  - Systems
+---
+
+Before Pumply, I mostly thought about a map as a visual thing.
+
+You have latitude and longitude. Put a marker there. Move the camera. Show the user what is nearby.
+
+PostGIS changed that for me because it made location feel less like presentation and more like something the database can reason about.
+
+The useful shift was this:
+
+**latitude and longitude are not just coordinates to draw — they are data you can query spatially.**
+
+## Latitude and longitude are not metres
+
+A coordinate such as:
+
+`5.6037, -0.1870`
+
+tells me where something is.
+
+It does not directly tell me how many metres away another coordinate is.
+
+Latitude and longitude are angular coordinates on the earth. If I start subtracting them in application code and pretending the result is a normal physical distance, I can get misleading answers.
+
+PostGIS gives PostgreSQL spatial types that understand those coordinates.
+
+For Pumply, the useful one is often `geography`, because PostGIS can treat WGS84 longitude/latitude as locations on the earth and return distances in metres.
+
+<aside class="source-note"><span>PostGIS · </span><a href="https://postgis.net/documentation/faq/geometry-or-geography/" target="_blank" rel="noopener noreferrer">Geometry or geography? ↗</a></aside>
+
+That made rules like “the reporter must be within 200 metres of this station” much easier to express correctly.
+
+## ST_DWithin is the function I keep reaching for
+
+The basic question appears everywhere in Pumply:
+
+**Is point A within X metres of point B?**
+
+PostGIS has a function for exactly that:
+
+`ST_DWithin(a, b, distance)`
+
+With geography values, the distance is expressed in metres.
+
+A simplified version of a station-proximity check looks like this:
+
+```sql
+SELECT ST_DWithin(
+  user_location,
+  station_location,
+  200
+);
+```
+
+That returns a boolean.
+
+The important part is not the syntax. It is that the trust rule can live in PostgreSQL instead of only inside the React app.
+
+The client can still perform its own check to give the user immediate feedback. But if somebody bypasses the interface and calls the backend directly, the database can enforce the same geographic rule.
+
+<aside class="source-note"><span>PostGIS · </span><a href="https://postgis.net/docs/manual-dev/en/ST_DWithin.html" target="_blank" rel="noopener noreferrer">ST_DWithin documentation ↗</a></aside>
+
+## Why not just calculate every distance?
+
+Because “calculate the exact distance from every station to this point” becomes expensive as the table grows.
+
+This is where spatial indexes clicked for me.
+
+PostGIS can use a GiST spatial index to reduce the search space for spatial relationships. Functions such as `ST_DWithin` are spatial-index aware, so PostgreSQL can avoid doing a full expensive distance calculation against every row when it has an index it can use.
+
+A typical index looks like:
+
+```sql
+CREATE INDEX stations_location_gix
+ON stations
+USING GIST (location);
+```
+
+Then a nearby-station query can use `ST_DWithin` as a filter.
+
+<aside class="source-note"><span>PostGIS · </span><a href="https://postgis.net/documentation/faq/spatial-indexes/" target="_blank" rel="noopener noreferrer">How do I use spatial indexes? ↗</a></aside>
+
+This is one of those database ideas that made a product feature feel much less magical. “Find nearby stations” is not a special map trick. It is a spatial query with the right representation and the right index.
+
+## Geometry and geography are not interchangeable words
+
+This confused me at first.
+
+PostGIS has both `geometry` and `geography`.
+
+Geometry treats coordinates on a plane. That is powerful and fast when you are working in an appropriate projected coordinate system.
+
+Geography works directly with geodetic longitude/latitude and models the earth as a sphere or spheroid for supported operations. That is convenient when the product's rules are naturally described in metres around real-world locations.
+
+The PostGIS documentation is explicit that geography is convenient but can be slower, while geometry supports a much wider set of spatial functions.
+
+So the decision is not “geography is more correct.”
+
+It is **which representation matches the operation I need?**
+
+For Pumply's proximity rules, geography is convenient because the rule itself is written in metres.
+
+## The backend should own the final distance decision
+
+One pattern I now use repeatedly is:
+
+1. calculate on the client for responsiveness;
+2. calculate again on the backend for authority.
+
+If the user is too far from a station, I want the interface to say so before they waste time filling out a report.
+
+But I do not want the browser to be the final judge.
+
+The browser is controlled by the user. Network requests can be replayed or changed. Old clients can survive longer than expected.
+
+The database is where the invariant should live.
+
+That same principle applies beyond maps, but PostGIS made it very concrete for me.
+
+## Visible map bounds are a database query too
+
+Distance is not the only spatial question.
+
+When a user moves the map, Pumply does not need every station in Ghana. It needs the stations inside the visible area.
+
+That means the map camera can become query input: north, south, east and west.
+
+The backend can build a spatial envelope from those bounds and return the stations that intersect it.
+
+The client then turns those rows into GeoJSON and gives them to MapLibre.
+
+I like this architecture because the map is not downloading the world and hiding most of it. The database answers the spatial question the interface is currently asking.
+
+## Spatial rules are product rules
+
+The most useful thing PostGIS taught me is that spatial logic is not just GIS plumbing.
+
+A 200 m reporting radius is a trust rule.
+
+A duplicate radius is a data-quality rule.
+
+A visible-bounds query is a performance rule.
+
+A nearest-station query is a product-behaviour rule.
+
+They happen to be expressed through geography.
+
+Once I started thinking that way, PostGIS stopped feeling like an advanced mapping extension and started feeling like a normal part of the application model.
+
+That is probably the note I want to remember:
+
+**if location changes what the product is allowed to do, location belongs in the backend model — not only on the map.**
+
+<section class="references">
+  <h2>References</h2>
+  <p>PostGIS — <a href="https://postgis.net/documentation/faq/geometry-or-geography/" target="_blank" rel="noopener noreferrer"><em>Should I use the geometry type or the geography type?</em> ↗</a></p>
+  <p>PostGIS — <a href="https://postgis.net/docs/manual-dev/en/ST_DWithin.html" target="_blank" rel="noopener noreferrer"><em>ST_DWithin</em> ↗</a></p>
+  <p>PostGIS — <a href="https://postgis.net/documentation/faq/spatial-indexes/" target="_blank" rel="noopener noreferrer"><em>How do I use spatial indexes?</em> ↗</a></p>
+</section>
