@@ -1,0 +1,328 @@
+---
+layout: ../../layouts/ArticleLayout.astro
+title: The real joy was never typing
+description: "AI changed how fast I can build, but the bigger change is that I can attempt systems I would have avoided before. The responsibility to understand what I ship did not disappear."
+date: 2026-09-24
+type: AI
+topics:
+  - AI
+  - Systems
+---
+
+There is a version of the AI coding debate that seems to reduce software development to one question:
+
+**Did you type the code yourself?**
+
+I understand why people care about that question. If you cannot explain what your software is doing, it is easy to ship something fragile, insecure or completely misunderstood. AI can generate a lot of code very quickly, which means it can also generate a lot of mistakes very quickly.
+
+But the more I build with AI, the less I think typing is the interesting part.
+
+The part I have always cared about is taking something that only exists in my head and turning it into something real.
+
+A product.
+
+A system.
+
+A workflow.
+
+Something another person can actually use.
+
+AI changed the distance between the idea and the thing.
+
+That is the change I care about most.
+
+## I do not miss the slow parts just because they were slow
+
+There is a romantic version of programming where the value of the work is measured by how much of the implementation you manually produced.
+
+I do not really relate to that.
+
+If a tool can write a repetitive migration, generate a component scaffold, trace an unfamiliar code path, suggest a test case or help me understand why a browser state transition is failing, I want to use it.
+
+I do not think removing friction automatically removes craft.
+
+A carpenter using a power tool is still responsible for whether the table is straight.
+
+The tool changes the amount of physical effort required. It does not make the final decision about what should be built, whether the joints make sense or whether the thing is safe to use.
+
+Software feels increasingly similar to me.
+
+The code can arrive faster.
+
+The responsibility does not.
+
+## The biggest change is not speed
+
+Speed is the obvious benefit of AI coding.
+
+I can move through ideas much faster than I could before.
+
+But I think the more important change is **ambition**.
+
+There are things I now attempt that I probably would not have attempted at all a few years ago.
+
+A crowdsourced fuel map with geospatial rules, moderation and pricing history.
+
+A prediction market with automated market making, idempotent trades, settlement evidence and market-wide probability history.
+
+An admin system that has to reconcile messy real-world records instead of just displaying clean database rows.
+
+The important part is not that an AI can produce a React component for any of those things.
+
+The important part is that I can keep enough of the product, database, UX, security and deployment context in motion to keep pushing the system forward.
+
+AI lowers the cost of exploring a problem.
+
+That makes previously unrealistic ideas feel reachable.
+
+## "Vibe coding" describes a real failure mode
+
+I joke about vibe coding because there is something accurate inside the joke.
+
+You can now describe what you want, watch code appear, click around until the interface looks right and keep moving without understanding much of what happened underneath.
+
+That is genuinely possible.
+
+It is also genuinely dangerous.
+
+The problem is not that AI wrote the code.
+
+The problem is that **nobody is taking responsibility for the system**.
+
+If I cannot explain why a database rule exists, I do not want the rule to survive just because the model generated it.
+
+If authentication breaks, I want to know what state transition failed.
+
+If a map behaves strangely, I want to know whether the problem is rendering, geography, stale data, browser state or product logic.
+
+If a trade can be submitted twice, a disabled button is not enough. I need to understand why the backend is or is not idempotent.
+
+Those are not typing problems.
+
+They are understanding problems.
+
+## Reading the system matters more to me now
+
+AI has made me spend less time thinking about the mechanics of producing every line and more time thinking about whether I can **read the system**.
+
+Can I trace what happens after this button is pressed?
+
+Can I tell which layer is authoritative?
+
+Can I see where state is duplicated?
+
+Can I identify which assumption the implementation depends on?
+
+Can I explain why this table exists?
+
+Can I tell whether a failed request is safe to retry?
+
+Can I understand what data becomes public and what stays private?
+
+Those questions feel more important to me than whether I personally wrote the syntax that answers them.
+
+This is also why I do not want AI to become a black box between me and my own product.
+
+If I cannot inspect the result, I am not really building with the tool.
+
+I am just accepting output.
+
+## Generated code is not generated judgment
+
+This distinction matters a lot.
+
+AI can generate a function.
+
+It can propose an architecture.
+
+It can write SQL.
+
+It can suggest a database index.
+
+It can produce a migration that looks plausible.
+
+But it does not automatically know which invariant I care about most.
+
+It does not know that a station UUID should survive a rebrand because years of history depend on it unless that context is made explicit.
+
+It does not know that a market being closed is different from the real-world event being resolved unless the product model makes that distinction clear.
+
+It does not know that a browser success state is not enough evidence that a database mutation is safe to retry.
+
+Those are product decisions.
+
+The code expresses them after somebody understands them.
+
+That is where I still see the builder's job.
+
+## AI is useful when it can hold context, not just write code
+
+The most useful AI sessions I have are rarely:
+
+> build me a button
+
+They are closer to:
+
+> this product has this schema, these existing constraints, this deployment setup, this weird mobile bug, these security rules and this thing we are absolutely not allowed to break. Find the smallest safe change.
+
+That is a different kind of tool.
+
+It feels less like autocomplete and more like a collaborator that can keep a large amount of project context available while I work through a problem.
+
+That is why the models getting better changes what I am willing to build.
+
+The improvement is not just that the generated TypeScript is cleaner.
+
+It is that the model can reason across more of the actual system at once.
+
+Product.
+
+Database.
+
+RLS.
+
+Deployment.
+
+UX.
+
+Security.
+
+Edge cases.
+
+History.
+
+The closer the tool gets to holding the real shape of the problem, the more useful it becomes.
+
+## The model being confident means nothing
+
+One habit AI has forced me to build is distrust.
+
+A model can be extremely confident and still be wrong.
+
+It can say a bug is fixed when the bug is still there.
+
+It can identify a plausible cause that is not the real cause.
+
+It can change a piece of code that makes the screenshot look right while quietly breaking another invariant.
+
+That means verification has to become part of the workflow.
+
+Build.
+
+Run the migration.
+
+Test the actual device.
+
+Check the database.
+
+Inspect the diff.
+
+Reproduce the failure.
+
+Watch the network request.
+
+Look at the logs.
+
+Ask what changed.
+
+Sometimes the best thing AI does is not give me the answer. It gives me a much faster way to investigate the answer.
+
+## I still care about craft
+
+Using AI has not made me care less about details.
+
+If anything, it has made the difference between **production** and **judgment** clearer.
+
+Production is getting cheaper.
+
+You can generate more interfaces, more code, more copy, more tests and more experiments than before.
+
+Judgment is still deciding which thing is right.
+
+Which edge case deserves a hard invariant?
+
+Which piece of complexity belongs in the backend instead of the user's head?
+
+Which shortcut is temporary and which one quietly becomes architecture?
+
+Which error state should stop the launch?
+
+Which detail is craftsmanship and which detail is perfectionism?
+
+Those questions do not disappear because the code was generated in seconds.
+
+## I do not want to pretend I typed everything myself
+
+I also think there is something strange about hiding AI use just to look more legitimate.
+
+I use it heavily.
+
+That is part of how I build.
+
+Sometimes my stack really does sound like Claude, Codex, Kimi, Supabase and whatever else helps me move the product forward.
+
+I am not interested in pretending otherwise.
+
+What I care about is whether I can stand behind the result.
+
+Can I explain the architecture?
+
+Can I explain the tradeoff?
+
+Can I explain why the bug happened?
+
+Can I repair the system when the first approach is wrong?
+
+Can I recognize when the model is confidently leading me in the wrong direction?
+
+That feels like a more useful standard than authorship-by-keystroke.
+
+## The skill is moving
+
+I do not think coding is disappearing.
+
+I think the boundary of what matters is moving.
+
+There will always be situations where understanding the language deeply matters.
+
+There will always be performance problems, security problems, systems problems and weird failures where shallow understanding is not enough.
+
+But more implementation will be generated.
+
+More code will arrive before the human has manually thought through every line.
+
+That makes reading, debugging, architecture, product judgment and verification more important, not less.
+
+The easier it becomes to create software, the easier it also becomes to create bad software.
+
+The ability to generate is not the scarce skill for long.
+
+The ability to know what should survive generation might be.
+
+## What I actually enjoy
+
+When I think about why I like building things, I do not think the answer was ever typing.
+
+It was seeing an idea become interactive.
+
+Watching the first real data appear.
+
+Finding the bug that made no sense.
+
+Realizing the database model was wrong and rebuilding it.
+
+Seeing someone else use the thing and immediately understanding a problem I had missed.
+
+Making a complicated system feel simple from the outside.
+
+AI gives me more time inside that part of the work.
+
+That is why I am excited about it.
+
+Not because I want to avoid understanding software.
+
+Because I want to spend more of my energy understanding **the thing I am trying to build**.
+
+The real joy was never typing.
+
+It was turning an idea into something alive.
