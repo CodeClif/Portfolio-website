@@ -1,0 +1,75 @@
+---
+const { term, meaning, analogy, example } = Astro.props;
+---
+<span class="concept-root" data-concept-root>
+  <button class="concept-trigger" type="button" aria-expanded="false">{term}</button>
+  <span class="concept-popover" role="dialog" aria-label={`Explanation of ${term}`} hidden>
+    <span class="concept-popover-head">
+      <strong>{term}</strong>
+      <button class="concept-close" type="button" aria-label="Close explanation">×</button>
+    </span>
+    <span class="concept-meaning">{meaning}</span>
+    {analogy && (
+      <span class="concept-section">
+        <small>Think of it like</small>
+        <span>{analogy}</span>
+      </span>
+    )}
+    {example && (
+      <span class="concept-section">
+        <small>Example</small>
+        <span>{example}</span>
+      </span>
+    )}
+  </span>
+</span>
+
+<script>
+  const closeConcepts = (except) => {
+    document.querySelectorAll('[data-concept-root]').forEach((root) => {
+      if (root === except) return;
+      const trigger = root.querySelector('.concept-trigger');
+      const popover = root.querySelector('.concept-popover');
+      if (trigger && popover) {
+        trigger.setAttribute('aria-expanded', 'false');
+        popover.hidden = true;
+      }
+    });
+  };
+
+  document.addEventListener('click', (event) => {
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+
+    const trigger = target.closest('.concept-trigger');
+    if (trigger) {
+      const root = trigger.closest('[data-concept-root]');
+      const popover = root?.querySelector('.concept-popover');
+      if (!root || !popover) return;
+      const opening = popover.hidden;
+      closeConcepts(opening ? root : undefined);
+      popover.hidden = !opening;
+      trigger.setAttribute('aria-expanded', opening ? 'true' : 'false');
+      return;
+    }
+
+    const close = target.closest('.concept-close');
+    if (close) {
+      const root = close.closest('[data-concept-root]');
+      const trigger = root?.querySelector('.concept-trigger');
+      const popover = root?.querySelector('.concept-popover');
+      if (trigger && popover) {
+        trigger.setAttribute('aria-expanded', 'false');
+        popover.hidden = true;
+        trigger.focus();
+      }
+      return;
+    }
+
+    if (!target.closest('[data-concept-root]')) closeConcepts();
+  });
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') closeConcepts();
+  });
+</script>
