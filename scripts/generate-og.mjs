@@ -47,6 +47,8 @@ function cardSvg({ title, meta = '', defaultCard = false }) {
   const lines = wrapWords(title, maxChars);
   const lineHeight = Math.round(fontSize * 1.15);
   const startY = defaultCard ? 255 : 235;
+  const lastTitleY = startY + Math.max(0, lines.length - 1) * lineHeight;
+  const footerY = defaultCard ? 565 : Math.min(520, lastTitleY + 125);
 
   const titleLines = lines
     .map((line, index) =>
@@ -61,8 +63,8 @@ function cardSvg({ title, meta = '', defaultCard = false }) {
     ${meta ? `<text x="1128" y="93" text-anchor="end" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="600" letter-spacing="0.8" fill="#2563a6">${escapeXml(meta)}</text>` : ''}
     <line x1="72" y1="142" x2="1128" y2="142" stroke="#d8dde3" stroke-width="2"/>
     ${titleLines}
-    <text x="72" y="565" font-family="Arial, Helvetica, sans-serif" font-size="27" fill="#666666">Building things, learning out loud.</text>
-    <text x="1128" y="565" text-anchor="end" font-family="Arial, Helvetica, sans-serif" font-size="24" fill="#7a7a7a">codeclif.github.io</text>
+    <text x="72" y="${footerY}" font-family="Arial, Helvetica, sans-serif" font-size="27" fill="#666666">Building things, learning out loud.</text>
+    <text x="1128" y="${footerY}" text-anchor="end" font-family="Arial, Helvetica, sans-serif" font-size="24" fill="#7a7a7a">codeclif.github.io</text>
   </svg>`;
 }
 
