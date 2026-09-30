@@ -4,12 +4,14 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "astro dev",
-    "build": "astro build",
-    "preview": "astro preview"
+    "dev": "npm run generate:og && astro dev",
+    "build": "npm run generate:og && astro build",
+    "preview": "astro preview",
+    "generate:og": "node scripts/generate-og.mjs"
   },
   "dependencies": {
     "@astrojs/mdx": "^4.0.0",
-    "astro": "^5.0.0"
+    "astro": "^5.0.0",
+    "sharp": "^0.33.5"
   }
 }
