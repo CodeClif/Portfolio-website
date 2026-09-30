@@ -1,12 +1,14 @@
 ---
 layout: ../../layouts/ArticleLayout.astro
 title: Thinking about craftsmanship vs perfectionism
-description: I care about small details when I build things. I'm still learning where craftsmanship ends and perfectionism begins.
+description: I care about small details when I build things. I'm still learning where <Concept term="craftsmanship" meaning="The habit of doing work carefully and skillfully because the quality of the work itself matters." analogy="A carpenter still sands the underside of a table even if most people will never look there." example="Fixing a confusing error state because it affects how trustworthy the product feels is craftsmanship." /> ends and <Concept term="perfectionism" meaning="The drive to keep removing flaws even after the extra work may no longer meaningfully improve the result." analogy="Polishing the same tiny scratch for hours while the finished table is still waiting to be used." example="Delaying a usable product for weeks because one animation could still be slightly smoother can become perfectionism." /> begins.
 date: 2026-09-22
 type: Diary
 topics:
   - Philosophy
 ---
+
+import Concept from '../../components/Concept.astro';
 
 I’ve been thinking about something I do a lot. Whenever I’m building something, I care about the small details, sometimes even details that most people will probably never notice. If a button feels slightly wrong, I want to fix it. If something loads strangely, I want to understand why. If a page looks good but something about it still feels off, I keep working on it.
 
@@ -39,7 +41,7 @@ That line gets very close to what I’m trying to describe. I want to get it rig
 
 ## The problem
 
-The same thing can also slow me down. Sometimes a product is already good enough to use, but I’m still fixing things: one more animation, one more edge case, one more layout problem, one more thing that probably only I noticed. Sometimes that work is important. Other times, I’m probably just delaying the moment when I have to put the thing in front of people.
+The same thing can also slow me down. Sometimes a product is already good enough to use, but I’m still fixing things: one more animation, one more <Concept term="edge case" meaning="An unusual situation that sits outside the normal path a product is designed around." analogy="Most people enter a shop through the front door; an edge case is asking what happens when the power goes out while someone is paying." example="A user pressing Pay twice during a bad internet connection is an edge case the system still needs to handle safely." />, one more layout problem, one more thing that probably only I noticed. Sometimes that work is important. Other times, I’m probably just delaying the moment when I have to put the thing in front of people.
 
 That’s the part I’m trying to get better at understanding.
 
