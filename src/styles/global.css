@@ -252,3 +252,113 @@
     font-size:.9rem;
   }
 }
+
+
+/* Inline concept explainers */
+.concept-root{
+  position:relative;
+  display:inline;
+}
+.concept-trigger{
+  appearance:none;
+  border:0;
+  border-bottom:1px dotted currentColor;
+  background:transparent;
+  color:var(--link);
+  padding:0;
+  margin:0;
+  font:inherit;
+  line-height:inherit;
+  cursor:pointer;
+}
+.concept-trigger:hover,
+.concept-trigger:focus-visible{
+  border-bottom-style:solid;
+  outline:none;
+}
+.concept-popover[hidden]{
+  display:none!important;
+}
+.concept-popover{
+  position:absolute;
+  z-index:120;
+  top:calc(100% + 10px);
+  left:0;
+  width:min(340px,calc(100vw - 40px));
+  padding:15px 16px 16px;
+  border:1px solid var(--rule);
+  border-radius:12px;
+  background:var(--bg);
+  color:var(--text);
+  box-shadow:0 14px 36px rgba(0,0,0,.14);
+  font-size:.9rem;
+  line-height:1.5;
+  text-align:left;
+}
+:root[data-theme=dark] .concept-popover{
+  box-shadow:0 18px 42px rgba(0,0,0,.38);
+}
+.concept-popover-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+  margin-bottom:7px;
+}
+.concept-popover-head strong{
+  font-size:.96rem;
+  font-weight:650;
+}
+.concept-close{
+  appearance:none;
+  border:0;
+  background:transparent;
+  color:var(--muted);
+  padding:0 1px;
+  font:inherit;
+  font-size:1.3rem;
+  line-height:1;
+  cursor:pointer;
+}
+.concept-meaning,
+.concept-section,
+.concept-section small,
+.concept-section span{
+  display:block;
+}
+.concept-meaning{
+  color:var(--article);
+}
+.concept-section{
+  margin-top:11px;
+  padding-top:10px;
+  border-top:1px solid var(--rule);
+}
+.concept-section small{
+  margin-bottom:3px;
+  color:var(--muted);
+  font-size:.72rem;
+  font-weight:650;
+  letter-spacing:.02em;
+  text-transform:uppercase;
+}
+.concept-section span{
+  color:var(--article);
+}
+@media(max-width:600px){
+  .concept-popover{
+    position:fixed;
+    z-index:1300;
+    top:auto;
+    right:16px;
+    bottom:max(16px,env(safe-area-inset-bottom));
+    left:16px;
+    width:auto;
+    max-height:min(70vh,460px);
+    overflow:auto;
+    padding:17px 17px 18px;
+    border-radius:16px;
+    font-size:.88rem;
+    box-shadow:0 18px 54px rgba(0,0,0,.24);
+  }
+}
