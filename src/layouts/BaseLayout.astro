@@ -1,9 +1,22 @@
 ---
 import '../styles/global.css';
 
-const { title = 'Clif Code', description = 'Building things, learning out loud.', current = '', articleMode = false } = Astro.props;
-const pageTitle = title === 'Clif Code' ? title : `${title} — Clif Code`;
 const base = import.meta.env.BASE_URL;
+const {
+  title = 'Clif Code',
+  description = 'Building things, learning out loud.',
+  current = '',
+  articleMode = false,
+  socialImage = `${base}og/clif-code.png`,
+  socialType = 'website',
+  publishedTime = '',
+  section = ''
+} = Astro.props;
+const pageTitle = title === 'Clif Code' ? title : `${title} — Clif Code`;
+const siteOrigin = Astro.site ?? Astro.url.origin;
+const canonicalUrl = new URL(Astro.url.pathname, siteOrigin).toString();
+const socialImageUrl = new URL(socialImage, siteOrigin).toString();
+const socialImageAlt = `${title} — Clif Code social preview`;
 const url = (path = '') => path ? `${base}${path.replace(/^\//, '').replace(/\/$/, '')}/` : base;
 const nav = [
   ['Projects','projects'], ['Research','research'], ['Diary','diary'],
@@ -19,6 +32,30 @@ const nav = [
   <meta name="theme-color" content="#ffffff" />
   <title>{pageTitle}</title>
   <meta name="description" content={description} />
+  <link rel="canonical" href={canonicalUrl} />
+
+  <meta property="og:locale" content="en_GB" />
+  <meta property="og:type" content={socialType} />
+  <meta property="og:site_name" content="Clif Code" />
+  <meta property="og:title" content={title} />
+  <meta property="og:description" content={description} />
+  <meta property="og:url" content={canonicalUrl} />
+  <meta property="og:image" content={socialImageUrl} />
+  <meta property="og:image:secure_url" content={socialImageUrl} />
+  <meta property="og:image:type" content="image/png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content={socialImageAlt} />
+  {publishedTime && <meta property="article:published_time" content={publishedTime} />}
+  {section && <meta property="article:section" content={section} />}
+
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:site" content="@clifcode" />
+  <meta name="twitter:creator" content="@clifcode" />
+  <meta name="twitter:title" content={title} />
+  <meta name="twitter:description" content={description} />
+  <meta name="twitter:image" content={socialImageUrl} />
+  <meta name="twitter:image:alt" content={socialImageAlt} />
 </head>
 <body>
   <main class="site-shell">
