@@ -9,13 +9,25 @@ const dateLabel = new Intl.DateTimeFormat('en-GB', {
   day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC'
 }).format(date);
 
+const slug = Astro.url.pathname.split('/').filter(Boolean).at(-1) || 'clif-code';
+const socialImage = `${base}og/${slug}.png`;
+
 const titleLength = frontmatter.title.trim().length;
 const titleSizeClass =
   titleLength > 46 ? 'article-title--very-long' :
   titleLength > 30 ? 'article-title--long' :
   'article-title--standard';
 ---
-<BaseLayout title={frontmatter.title} description={frontmatter.description} current={frontmatter.type === 'Diary' ? 'Diary' : ''} articleMode={true}>
+<BaseLayout
+  title={frontmatter.title}
+  description={frontmatter.description}
+  current={frontmatter.type === 'Diary' ? 'Diary' : ''}
+  articleMode={true}
+  socialImage={socialImage}
+  socialType="article"
+  publishedTime={date.toISOString()}
+  section={frontmatter.type}
+>
   <article class="article-page article-body">
     <header class="article-header">
       <h1 class={titleSizeClass}>{frontmatter.title}</h1>
