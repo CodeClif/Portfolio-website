@@ -35,6 +35,7 @@ jobs:
           const fs = require('fs');
           const path = require('path');
           const { File } = require('node:buffer');
+          const mime = require('mime-types');
           const { PinataSDK } = require('pinata');
 
           const pinata = new PinataSDK({
@@ -52,7 +53,8 @@ jobs:
                 files.push(...collectFiles(fullPath, root));
               } else {
                 const relativePath = path.relative(root, fullPath).split(path.sep).join('/');
-                files.push(new File([fs.readFileSync(fullPath)], relativePath));
+                const contentType = mime.contentType(path.extname(relativePath)) || 'application/octet-stream';
+                files.push(new File([fs.readFileSync(fullPath)], relativePath, { type: contentType }));
               }
             }
 
