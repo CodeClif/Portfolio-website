@@ -28,8 +28,7 @@ jobs:
         with:
           path-to-deploy: dist
           cid-profile: unixfs-v1-2025
-          github-token: ${{ github.token }}
-          set-github-status: 'true'
+          set-github-status: 'false'
           upload-car-artifact: 'true'
       - name: Upload CAR to Pinata
         env:
@@ -38,7 +37,13 @@ jobs:
           CAR_PATH: ${{ steps.deploy.outputs.car-path }}
         run: |
           PIN_NAME="${GITHUB_REPOSITORY//\//-}-${GITHUB_SHA:0:7}"
-          response=$(curl -sS -w "\n%{http_code}" -X POST             "https://uploads.pinata.cloud/v3/files"             -H "Authorization: Bearer ${PINATA_JWT_TOKEN}"             -F "network=public"             -F "file=@${CAR_PATH}"             -F "name=${PIN_NAME}"             -F "car=true")
+          response=$(curl -sS -w "\n%{http_code}" -X POST \
+            "https://uploads.pinata.cloud/v3/files" \
+            -H "Authorization: Bearer ${PINATA_JWT_TOKEN}" \
+            -F "network=public" \
+            -F "file=@${CAR_PATH}" \
+            -F "name=${PIN_NAME}" \
+            -F "car=true")
           http_code=$(echo "$response" | tail -n1)
           body=$(echo "$response" | sed '$d')
           if [ "$http_code" != "200" ]; then
@@ -52,4 +57,4 @@ jobs:
             echo "::error::CID mismatch: expected $CID but Pinata returned $returned_cid"
             exit 1
           fi
-          echo "Successfully pinned ${CID} to Pinata."
+          echo "Successfully pinned $CID to Pinata."
