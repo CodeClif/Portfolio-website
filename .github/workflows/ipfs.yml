@@ -66,8 +66,7 @@ jobs:
             console.log('Uploading', files.length, 'files to Pinata...');
 
             const result = await pinata.upload.public.fileArray(files)
-              .name('clifcode-portfolio')
-              .execute();
+              .name('clifcode-portfolio');
 
             console.log('IPFS CID:', result.cid);
             console.log('Pin size:', result.size);
