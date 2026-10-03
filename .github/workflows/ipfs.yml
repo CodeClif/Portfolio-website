@@ -26,73 +26,10 @@ jobs:
       - name: Build site
         run: npm run build
 
-      - name: Upload site to Pinata
+      - name: Upload site folder to Pinata
         env:
           PINATA_JWT: ${{ secrets.PINATA_JWT }}
         run: |
-          npm install --no-save pinata
-          node <<'NODE'
-          const fs = require('fs');
-          const path = require('path');
-          const { File } = require('node:buffer');
-          const { PinataSDK } = require('pinata');
-
-          const pinata = new PinataSDK({
-            pinataJwt: process.env.PINATA_JWT
-          });
-
-          function collectFiles(dir, root = dir) {
-            const entries = fs.readdirSync(dir, { withFileTypes: true });
-            const files = [];
-
-            for (const entry of entries) {
-              const fullPath = path.join(dir, entry.name);
-
-              if (entry.isDirectory()) {
-                files.push(...collectFiles(fullPath, root));
-              } else {
-                const relativePath = path.relative(root, fullPath).split(path.sep).join('/');
-                const ext = path.extname(relativePath).toLowerCase();
-                const contentTypes = {
-                  '.html': 'text/html',
-                  '.css': 'text/css',
-                  '.js': 'application/javascript',
-                  '.mjs': 'application/javascript',
-                  '.json': 'application/json',
-                  '.xml': 'application/xml',
-                  '.svg': 'image/svg+xml',
-                  '.png': 'image/png',
-                  '.jpg': 'image/jpeg',
-                  '.jpeg': 'image/jpeg',
-                  '.webp': 'image/webp',
-                  '.gif': 'image/gif',
-                  '.ico': 'image/x-icon',
-                  '.woff': 'font/woff',
-                  '.woff2': 'font/woff2',
-                  '.txt': 'text/plain'
-                };
-                const contentType = contentTypes[ext] || 'application/octet-stream';
-                files.push(new File([fs.readFileSync(fullPath)], relativePath, { type: contentType }));
-              }
-            }
-
-            return files;
-          }
-
-          (async () => {
-            const files = collectFiles('dist');
-            if (!files.length) throw new Error('No files found in dist');
-
-            console.log('Uploading', files.length, 'files to Pinata...');
-
-            const result = await pinata.upload.public.fileArray(files)
-              .name('clifcode-portfolio');
-
-            console.log('IPFS CID:', result.cid);
-            console.log('Pin size:', result.size);
-            console.log('Files:', result.number_of_files);
-          })().catch((error) => {
-            console.error('Pinata upload failed:', error?.response?.data || error?.message || error);
-            process.exit(1);
-          });
-          NODE
+          npm install -g pinata-upload-cli
+          pinata-cli -a "$PINATA_JWT"
+          pinata-cli -u dist
