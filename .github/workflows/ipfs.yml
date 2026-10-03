@@ -1,0 +1,42 @@
+name: Build IPFS site
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  build-ipfs:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build site
+        run: npm run build
+
+      - name: Create IPFS deployment
+        uses: ipshipyard/ipfs-deploy-action@v3
+        id: deploy
+        with:
+          path-to-deploy: dist
+          github-token: ${{ github.token }}
+          set-github-status: 'true'
+          upload-car-artifact: 'true'
+
+      - name: Report CID
+        run: |
+          echo "IPFS CID: ${{ steps.deploy.outputs.cid }}"
+          echo "CAR: ${{ steps.deploy.outputs.car-path }}"
