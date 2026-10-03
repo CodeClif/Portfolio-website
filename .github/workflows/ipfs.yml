@@ -33,38 +33,30 @@ jobs:
         env:
           PINATA_JWT: ${{ secrets.PINATA_JWT }}
         run: |
-          npm install --no-save pinata
+          npm install --no-save @pinata/sdk
           node <<'NODE' > /tmp/pinata-result.txt
-          const fs = require('fs');
-          const path = require('path');
-          const { File } = require('node:buffer');
-          const { PinataSDK } = require('pinata');
-
-          const pinata = new PinataSDK({ pinataJwt: process.env.PINATA_JWT });
-
-          function collectFiles(dir, root = dir) {
-            return fs.readdirSync(dir, { withFileTypes: true }).flatMap(entry => {
-              const fullPath = path.join(dir, entry.name);
-              if (entry.isDirectory()) return collectFiles(fullPath, root);
-              const relativePath = path.relative(root, fullPath).split(path.sep).join('/');
-              return [new File([fs.readFileSync(fullPath)], relativePath)];
-            });
-          }
+          const pinataSDK = require('@pinata/sdk');
+          const pinata = new pinataSDK({ pinataJWTKey: process.env.PINATA_JWT });
 
           (async () => {
-            const files = collectFiles('dist');
-            if (!files.length) throw new Error('No files found in dist');
-            const result = await pinata.upload.public.fileArray(files).name('clifcode-portfolio');
-            console.log(result.cid);
+            await pinata.testAuthentication();
+
+            const result = await pinata.pinFromFS('dist', {
+              pinataMetadata: {
+                name: 'clifcode-portfolio'
+              },
+              pinataOptions: {
+                cidVersion: 0,
+                wrapWithDirectory: true
+              }
+            });
+
+            console.log(result.IpfsHash);
           })().catch(error => {
-            console.error(error?.message || error);
+            console.error(error?.response?.data || error?.message || error);
             process.exit(1);
           });
           NODE
-
-          CID="$(tail -n 1 /tmp/pinata-result.txt)"
-          echo "CID=$CID"
-          echo "CID=$CID" >> "$GITHUB_ENV"
 
           echo "=== IPFS gateway headers ==="
           curl -sSIL --max-time 30 "https://ipfs.io/ipfs/$CID/" | sed -n '1,25p'
