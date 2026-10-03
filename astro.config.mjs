@@ -1,9 +1,11 @@
 import { defineConfig } from 'astro/config';
 import mdx from '@astrojs/mdx';
 
+const isIpfs = process.env.DEPLOY_TARGET === 'ipfs';
+
 export default defineConfig({
   integrations: [mdx()],
-  site: 'https://codeclif.github.io',
-  base: '/Portfolio-website',
+  site: process.env.SITE_URL || 'https://codeclif.github.io',
+  base: isIpfs ? '/' : '/Portfolio-website',
   trailingSlash: 'always'
 });
