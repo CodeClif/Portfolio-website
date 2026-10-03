@@ -1,4 +1,4 @@
-name: Build IPFS site
+name: Build and pin IPFS site
 
 on:
   push:
@@ -11,32 +11,46 @@ permissions:
 jobs:
   build-ipfs:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 'lts/*'
-
+          cache: npm
       - name: Install dependencies
         run: npm install
-
       - name: Build site
         run: npm run build
-
-      - name: Create IPFS deployment
-        uses: ipshipyard/ipfs-deploy-action@v3
+      - name: Create IPFS CAR
+        uses: ipfs/ipfs-deploy-action@v3
         id: deploy
         with:
           path-to-deploy: dist
+          cid-profile: unixfs-v1-2025
           github-token: ${{ github.token }}
           set-github-status: 'true'
           upload-car-artifact: 'true'
-
-      - name: Report CID
+      - name: Upload CAR to Pinata
+        env:
+          PINATA_JWT_TOKEN: ${{ secrets.PINATA_JWT }}
+          CID: ${{ steps.deploy.outputs.cid }}
+          CAR_PATH: ${{ steps.deploy.outputs.car-path }}
         run: |
-          echo "IPFS CID: ${{ steps.deploy.outputs.cid }}"
-          echo "CAR: ${{ steps.deploy.outputs.car-path }}"
+          PIN_NAME="${GITHUB_REPOSITORY//\//-}-${GITHUB_SHA:0:7}"
+          response=$(curl -sS -w "\n%{http_code}" -X POST             "https://uploads.pinata.cloud/v3/files"             -H "Authorization: Bearer ${PINATA_JWT_TOKEN}"             -F "network=public"             -F "file=@${CAR_PATH}"             -F "name=${PIN_NAME}"             -F "car=true")
+          http_code=$(echo "$response" | tail -n1)
+          body=$(echo "$response" | sed '$d')
+          if [ "$http_code" != "200" ]; then
+            echo "::error::Pinata upload failed (HTTP $http_code): $body"
+            exit 1
+          fi
+          returned_cid=$(echo "$body" | jq -r '.data.cid')
+          echo "IPFS CID: $CID"
+          echo "Pinata CID: $returned_cid"
+          if [ "$returned_cid" != "$CID" ]; then
+            echo "::error::CID mismatch: expected $CID but Pinata returned $returned_cid"
+            exit 1
+          fi
+          echo "Successfully pinned ${CID} to Pinata."
