@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -11,6 +12,9 @@ permissions:
 jobs:
   build-ipfs:
     runs-on: ubuntu-latest
+    env:
+      # Only a true/false flag, so the key itself is never exposed to other steps.
+      HAS_W3NAME_KEY: ${{ secrets.W3NAME_KEY != '' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -30,6 +34,7 @@ jobs:
         run: npm run build
 
       - name: Upload site to Pinata
+        id: pinata
         env:
           PINATA_JWT: ${{ secrets.PINATA_JWT }}
         run: |
@@ -86,9 +91,20 @@ jobs:
           echo "CID_V1=$CID_V1"
           echo "CID_V0=$CID_V0"
           echo "ENS_CONTENT=ipfs://$CID_V0"
+          echo "cid_v1=$CID_V1" >> "$GITHUB_OUTPUT"
 
           echo "=== New IPFS gateway ==="
           curl -sSIL --max-time 30 "https://ipfs.io/ipfs/$CID_V1/" | sed -n '1,20p' || true
 
-          echo "=== ENS gateway (still points at old CID until ENS is changed) ==="
+          echo "=== ENS gateway (only follows this build once ENS points at the IPNS name) ==="
           curl -sSIL --max-time 30 "https://clifcode.eth.limo/" | sed -n '1,25p' || true
+
+      - name: Point IPNS name at new build
+        if: env.HAS_W3NAME_KEY == 'true'
+        env:
+          W3NAME_KEY: ${{ secrets.W3NAME_KEY }}
+        run: node scripts/ipns.mjs publish "${{ steps.pinata.outputs.cid_v1 }}"
+
+      - name: IPNS not configured
+        if: env.HAS_W3NAME_KEY != 'true'
+        run: echo "::notice::W3NAME_KEY secret not set; skipped IPNS publish. Update the ENS content hash manually with the ENS_CONTENT value above."

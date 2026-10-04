@@ -7,11 +7,13 @@
     "dev": "npm run generate:og && astro dev",
     "build": "npm run generate:og && astro build",
     "preview": "astro preview",
-    "generate:og": "node scripts/generate-og.mjs"
+    "generate:og": "node scripts/generate-og.mjs",
+    "ipns:keygen": "node scripts/ipns.mjs keygen"
   },
   "dependencies": {
     "@astrojs/mdx": "^4.0.0",
     "astro": "^5.0.0",
-    "sharp": "^0.33.5"
+    "sharp": "^0.33.5",
+    "w3name": "^1.1.3"
   }
 }
