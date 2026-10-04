@@ -1,0 +1,30 @@
+name: Diagnose IPFS/IPNS reachability
+
+on:
+  push:
+    branches:
+      - claude/github-codebase-fixes-pyxhmc
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    env:
+      NAME: k51qzi5uqu5dimnnsv1csg1hc9ivjmsxpd47fu5l86lbrmpp90k4ua67o48wt9
+      CID: bafybeifc7ykqryexwjj3z7o6p6e3xnwlwumw3hkecadjx5swqjjwxzdxmi
+    steps:
+      - name: Probe
+        run: |
+          probe() { echo; echo "=== $1"; curl -sS -o /tmp/body -w 'HTTP %{http_code} in %{time_total}s\n' --max-time 60 "${@:2}" || echo "curl failed"; head -c 600 /tmp/body 2>/dev/null | tr -d '\0'; echo; }
+          probe "w3name API record" "https://name.web3.storage/name/$NAME"
+          probe "Delegated routing: IPNS record" -H 'Accept: application/vnd.ipfs.ipns-record' "https://delegated-ipfs.dev/routing/v1/ipns/$NAME"
+          probe "Delegated routing: providers of site CID" "https://delegated-ipfs.dev/routing/v1/providers/$CID"
+          probe "Pinata public gateway (CID)" -I "https://gateway.pinata.cloud/ipfs/$CID/"
+          probe "dweb.link (CID)" -I "https://$CID.ipfs.dweb.link/"
+          probe "dweb.link (IPNS)" -I "https://$NAME.ipns.dweb.link/"
+          probe "w3s.link (IPNS)" -I "https://$NAME.ipns.w3s.link/"
+          probe "eth.limo site" -I "https://clifcode.eth.limo/"
+          probe "eth.limo DoH contenthash" -H 'accept: application/dns-json' "https://dns.eth.limo/dns-query?name=clifcode.eth&type=TXT"
