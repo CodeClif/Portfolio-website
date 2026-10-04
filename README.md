@@ -42,7 +42,7 @@ npm run build
 Every push to `main` deploys two copies of the site:
 
 - **GitHub Pages** (`.github/workflows/pages.yml`), fully automatic.
-- **IPFS/ENS** (`.github/workflows/ipfs.yml`): builds with `DEPLOY_TARGET=ipfs`, pins the output to Pinata, then points the site's IPNS name at the new build using w3name.
+- **IPFS/ENS** (`.github/workflows/ipfs.yml`): builds with `DEPLOY_TARGET=ipfs`, pins the output to Pinata, then points the site's IPNS name at the new build using w3name and announces the signed record to the IPFS network through `delegated-ipfs.dev`, which is where gateways like eth.limo look it up.
 
 `clifcode.eth`'s ENS content hash is set once to `ipns://<name>`, so new deploys don't need an ENS transaction. `.github/workflows/ipns-refresh.yml` re-signs the IPNS record daily so it doesn't expire from the IPFS network.
 
