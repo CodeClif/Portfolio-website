@@ -11,9 +11,9 @@
     "ipns:keygen": "node scripts/ipns.mjs keygen"
   },
   "dependencies": {
-    "@astrojs/mdx": "^4.0.0",
-    "astro": "^5.0.0",
-    "sharp": "^0.33.5",
+    "@astrojs/mdx": "^8.0.2",
+    "astro": "^7.3.5",
+    "sharp": "^0.35.5",
     "w3name": "^1.1.3"
   }
 }
