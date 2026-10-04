@@ -9,6 +9,10 @@ topics:
 ---
 
 import Concept from '../../components/Concept.astro';
+import mapDots from '../../assets/posts/craftsmanship/map-dots.webp';
+import mapClusters from '../../assets/posts/craftsmanship/map-clusters.webp';
+import stationSheet from '../../assets/posts/craftsmanship/station-sheet.webp';
+import priceCards from '../../assets/posts/craftsmanship/price-cards.webp';
 
 I’ve been thinking about something I do a lot. Whenever I’m building something, I care about the small details, sometimes even details that most people will probably never notice. If a button feels slightly wrong, I want to fix it. If something loads strangely, I want to understand why. If a page looks good but something about it still feels off, I keep working on it.
 
@@ -18,9 +22,12 @@ Richard Sennett puts the good side of this very simply in *The Craftsman*: the d
 
 <aside class="source-note"><span>Richard Sennett · </span><a href="https://yalebooks.yale.edu/book/9780300151190/the-craftsman/" target="_blank" rel="noopener noreferrer"><em>The Craftsman</em> ↗</a></aside>
 
-<figure class="article-figure">
-  <img src="https://screenshots.shipstatic.com/visceral-hub-zvkg7n9/de931138ff01e007" alt="An earlier, more visually busy version of the Clif Code website" loading="lazy" />
-  <figcaption>One of the first directions for this site. It wasn’t bad. It just had too much going on.</figcaption>
+<figure class="article-figure figure-pair">
+  <div class="figure-pair-images">
+    <img src={mapDots.src} width={mapDots.width} height={mapDots.height} alt="An early Pumply map of Kumasi with stations shown as plain blue dots and raw price numbers floating beside them" loading="lazy" />
+    <img src={mapClusters.src} width={mapClusters.width} height={mapClusters.height} alt="A later Pumply map of Accra with nearby stations grouped into cards showing how many stations are in each area" loading="lazy" />
+  </div>
+  <figcaption>Two versions of the Pumply map. Early on, every station was a dot with a number next to it. Later, nearby stations were grouped into counts so the map stayed readable.</figcaption>
 </figure>
 
 ## The good side
@@ -34,9 +41,12 @@ I think caring about details is one of the reasons I enjoy building things. When
 
 That line gets very close to what I’m trying to describe. I want to get it right. There’s something satisfying about knowing that even the parts nobody sees were treated with care. I don’t want to build something badly just because nobody will notice.
 
-<figure class="article-figure">
-  <img src="https://screenshots.shipstatic.com/radiant-trail-8c3z28a/a5e0f8969f40b4cc" alt="The current, simpler Clif Code website" loading="lazy" />
-  <figcaption>The version I ended up liking more after removing almost everything.</figcaption>
+<figure class="article-figure figure-pair">
+  <div class="figure-pair-images">
+    <img src={stationSheet.src} width={stationSheet.width} height={stationSheet.height} alt="An early Pumply station sheet over a zoomed-out map of Africa, with the station name and a 'No recent reports' label cut off" loading="lazy" />
+    <img src={priceCards.src} width={priceCards.width} height={priceCards.height} alt="A later Pumply map with petrol price cards and the station brand logo shown directly on each pin" loading="lazy" />
+  </div>
+  <figcaption>An early station sheet where the text didn’t fit, next to a later version that puts fuel type, price and brand straight onto the map.</figcaption>
 </figure>
 
 ## The problem

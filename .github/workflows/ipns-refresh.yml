@@ -1,0 +1,41 @@
+name: Refresh IPNS record
+
+# IPNS records fade from the IPFS network if nobody re-announces them, so
+# re-sign the current value every day even when the site hasn't changed.
+on:
+  schedule:
+    - cron: '17 6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  refresh-ipns:
+    runs-on: ubuntu-latest
+    env:
+      HAS_W3NAME_KEY: ${{ secrets.W3NAME_KEY != '' }}
+    steps:
+      - name: Checkout
+        if: env.HAS_W3NAME_KEY == 'true'
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        if: env.HAS_W3NAME_KEY == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
+
+      - name: Install dependencies
+        if: env.HAS_W3NAME_KEY == 'true'
+        run: npm install
+
+      - name: Republish IPNS record
+        if: env.HAS_W3NAME_KEY == 'true'
+        env:
+          W3NAME_KEY: ${{ secrets.W3NAME_KEY }}
+        run: node scripts/ipns.mjs republish
+
+      - name: IPNS not configured
+        if: env.HAS_W3NAME_KEY != 'true'
+        run: echo "::notice::W3NAME_KEY secret not set; nothing to refresh."
