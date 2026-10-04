@@ -64,7 +64,7 @@ jobs:
               throw new Error(`Uploaded CID is not dag-pb (codec ${cid.code}); cannot safely convert to CIDv0.`);
             }
 
-            const cidV0 = base58btc.encode(cid.multihash.bytes);
+            const cidV0 = base58btc.encode(cid.multihash.bytes).slice(1);
 
             console.log(`CIDv1=${result.cid}`);
             console.log(`CIDv0=${cidV0}`);
