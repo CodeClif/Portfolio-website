@@ -7,5 +7,7 @@ export default defineConfig({
   integrations: [mdx()],
   site: process.env.SITE_URL || 'https://codeclif.github.io',
   base: isIpfs ? '/' : '/Portfolio-website',
-  trailingSlash: 'always'
+  trailingSlash: 'always',
+  // Keep Astro 6's HTML-aware whitespace so spaces between inline elements survive.
+  compressHTML: true
 });
