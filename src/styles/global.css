@@ -87,6 +87,8 @@
 /* Future-proof article title sizing */
 .article-header h1{
   text-wrap:wrap;
+  /* Even out the lines so a short last word like "II" never sits alone. */
+  text-wrap:balance;
   max-width:100%;
 }
 .article-header h1.article-title--standard{
