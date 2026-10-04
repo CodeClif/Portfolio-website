@@ -9,6 +9,9 @@
 import * as Name from 'w3name';
 
 const W3NAME_API = 'https://name.web3.storage';
+// Gateways like eth.limo look IPNS names up on the IPFS network, which w3name
+// doesn't reliably announce to, so hand the signed record to a public router too.
+const ROUTING_API = 'https://delegated-ipfs.dev/routing/v1/ipns';
 
 async function loadName() {
   const encoded = process.env.W3NAME_KEY?.trim();
@@ -23,6 +26,19 @@ async function isPublished(name) {
   if (response.status === 404) return false;
   if (!response.ok) throw new Error(`w3name lookup failed with status ${response.status}`);
   return true;
+}
+
+async function announce(name) {
+  const lookup = await fetch(`${W3NAME_API}/name/${name}`);
+  if (!lookup.ok) throw new Error(`w3name lookup failed with status ${lookup.status}`);
+  const { record } = await lookup.json();
+
+  const response = await fetch(`${ROUTING_API}/${name}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/vnd.ipfs.ipns-record' },
+    body: Buffer.from(record, 'base64')
+  });
+  if (!response.ok) throw new Error(`Announcing to ${ROUTING_API} failed with status ${response.status}`);
 }
 
 async function publish(value) {
@@ -43,6 +59,8 @@ async function publish(value) {
   if (check.value !== revision.value) {
     throw new Error(`Published ${revision.value} but w3name returned ${check.value}`);
   }
+
+  await announce(name);
 
   console.log(`IPNS_NAME=${name}`);
   console.log(`IPNS_VALUE=${revision.value}`);
