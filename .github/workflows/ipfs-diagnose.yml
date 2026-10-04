@@ -19,12 +19,10 @@ jobs:
       - name: Probe
         run: |
           probe() { echo; echo "=== $1"; curl -sS -o /tmp/body -w 'HTTP %{http_code} in %{time_total}s\n' --max-time 60 "${@:2}" || echo "curl failed"; head -c 600 /tmp/body 2>/dev/null | tr -d '\0'; echo; }
-          probe "w3name API record" "https://name.web3.storage/name/$NAME"
-          probe "Delegated routing: IPNS record" -H 'Accept: application/vnd.ipfs.ipns-record' "https://delegated-ipfs.dev/routing/v1/ipns/$NAME"
-          probe "Delegated routing: providers of site CID" "https://delegated-ipfs.dev/routing/v1/providers/$CID"
-          probe "Pinata public gateway (CID)" -I "https://gateway.pinata.cloud/ipfs/$CID/"
-          probe "dweb.link (CID)" -I "https://$CID.ipfs.dweb.link/"
-          probe "dweb.link (IPNS)" -I "https://$NAME.ipns.dweb.link/"
-          probe "w3s.link (IPNS)" -I "https://$NAME.ipns.w3s.link/"
-          probe "eth.limo site" -I "https://clifcode.eth.limo/"
-          probe "eth.limo DoH contenthash" -H 'accept: application/dns-json' "https://dns.eth.limo/dns-query?name=clifcode.eth&type=TXT"
+          curl -sS --max-time 30 "https://name.web3.storage/name/$NAME" | jq -r .record | base64 -d > /tmp/record.bin
+          echo "record bytes: $(wc -c < /tmp/record.bin)"
+          probe "PUT record to delegated routing" -X PUT -H 'Content-Type: application/vnd.ipfs.ipns-record' --data-binary @/tmp/record.bin "https://delegated-ipfs.dev/routing/v1/ipns/$NAME"
+          sleep 20
+          probe "Delegated routing: IPNS record after PUT" -H 'Accept: application/vnd.ipfs.ipns-record' "https://delegated-ipfs.dev/routing/v1/ipns/$NAME"
+          sleep 30
+          probe "eth.limo site after PUT" -I "https://clifcode.eth.limo/"
