@@ -17,10 +17,10 @@ jobs:
       HAS_W3NAME_KEY: ${{ secrets.W3NAME_KEY != '' }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 'lts/*'
 
@@ -93,10 +93,10 @@ jobs:
           echo "ENS_CONTENT=ipfs://$CID_V0"
           echo "cid_v1=$CID_V1" >> "$GITHUB_OUTPUT"
 
-          echo "=== New IPFS gateway ==="
-          curl -sSIL --max-time 30 "https://ipfs.io/ipfs/$CID_V1/" | sed -n '1,20p' || true
+          echo "=== New build on Pinata gateway ==="
+          curl -sSIL --max-time 30 "https://gateway.pinata.cloud/ipfs/$CID_V1/" | sed -n '1,20p' || true
 
-          echo "=== ENS gateway (only follows this build once ENS points at the IPNS name) ==="
+          echo "=== ENS gateway (shows the previous build until the IPNS step below runs and eth.limo's 5-minute cache expires) ==="
           curl -sSIL --max-time 30 "https://clifcode.eth.limo/" | sed -n '1,25p' || true
 
       - name: Point IPNS name at new build
