@@ -424,3 +424,23 @@
     line-height:1.15;
   }
 }
+
+/* The block of text currently being read aloud by the voice player. */
+.voice-current{
+  position:relative;
+}
+.voice-current::before{
+  content:"";
+  position:absolute;
+  left:-14px;
+  top:.3em;
+  bottom:.3em;
+  width:2px;
+  border-radius:2px;
+  background:var(--link);
+}
+
+/* On pages with a site header, the voice player sits over it, so keep it close to opaque. */
+#voicePlayer{
+  --player-bg:color-mix(in srgb,var(--bg) 94%,transparent);
+}

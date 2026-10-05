@@ -1,0 +1,179 @@
+---
+// Plays a page's recorded reading: one audio file per block of text, played in
+// order as a single reading. Each track's id matches a data-voice attribute on
+// the element it reads, which is highlighted while its track plays.
+const { tracks = [] } = Astro.props;
+const totalSeconds = tracks.reduce((sum, track) => sum + track.seconds, 0);
+const minutes = Math.max(1, Math.round(totalSeconds / 60));
+---
+{tracks.length > 0 && (
+  <div id="voiceRoot" data-tracks={JSON.stringify(tracks)}>
+    <button class="inline-listen" id="voiceInline" type="button"><span aria-hidden="true">▶</span> Listen <span class="muted">· about {minutes} min</span></button>
+
+    <div class="sticky-player" id="voicePlayer" role="group" aria-label="Audio reading" hidden>
+      <button class="player-btn transport" id="voiceToggle" type="button" aria-label="Pause"><span class="pause-bars" aria-hidden="true"><i></i><i></i></span></button>
+      <span class="player-time" id="voiceTime">00:00</span>
+      <button class="player-speed" id="voiceSpeed" type="button" aria-label="Change playback speed">1×</button>
+      <button class="player-btn jump" id="voiceBack" type="button" aria-label="Go back 15 seconds">
+        <svg class="jump-svg" viewBox="0 0 40 44" aria-hidden="true"><path class="jump-ring" d="M30.5 14.1a13.2 13.2 0 1 0 1.2 18.2"/><path class="jump-head" d="M30.4 7.2v8.1h-8.1"/><text x="20" y="31.5" text-anchor="middle">15</text></svg>
+      </button>
+      <button class="player-btn jump" id="voiceForward" type="button" aria-label="Go forward 15 seconds">
+        <svg class="jump-svg" viewBox="0 0 40 44" aria-hidden="true"><path class="jump-ring" d="M9.5 14.1a13.2 13.2 0 1 1-1.2 18.2"/><path class="jump-head" d="M9.6 7.2v8.1h8.1"/><text x="20" y="31.5" text-anchor="middle">15</text></svg>
+      </button>
+      <button class="player-btn player-close" id="voiceClose" type="button" aria-label="Close audio reading">×</button>
+    </div>
+  </div>
+)}
+
+<script>
+const root = document.getElementById('voiceRoot');
+
+if (root) {
+  const tracks = JSON.parse(root.dataset.tracks || '[]');
+  const inline = document.getElementById('voiceInline');
+  const player = document.getElementById('voicePlayer');
+  const toggle = document.getElementById('voiceToggle');
+  const timeEl = document.getElementById('voiceTime');
+  const speedBtn = document.getElementById('voiceSpeed');
+  const back = document.getElementById('voiceBack');
+  const forward = document.getElementById('voiceForward');
+  const close = document.getElementById('voiceClose');
+
+  // Elapsed seconds before each track starts, so one clock spans the whole reading.
+  const starts = tracks.map((_, i) => tracks.slice(0, i).reduce((sum, track) => sum + track.seconds, 0));
+  const total = tracks.reduce((sum, track) => sum + track.seconds, 0);
+  const speeds = [1, 1.25, 1.5, 0.75];
+
+  const audio = new Audio();
+  audio.preload = 'none';
+  let index = 0;
+  let speedIndex = 0;
+  let wantPlaying = false;
+  let userScrollUntil = 0;
+
+  const fmt = (seconds) => {
+    const s = Math.max(0, Math.floor(seconds));
+    return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+  };
+  const elementFor = (i) => document.querySelector(`[data-voice="${tracks[i].id}"]`);
+  const position = () => starts[index] + (audio.currentTime || 0);
+
+  const setTransport = (playing) => {
+    toggle.innerHTML = playing
+      ? '<span class="pause-bars" aria-hidden="true"><i></i><i></i></span>'
+      : '<span class="play-triangle" aria-hidden="true">▶</span>';
+    toggle.setAttribute('aria-label', playing ? 'Pause' : 'Play');
+  };
+  const markCurrent = () => {
+    document.querySelectorAll('.voice-current').forEach((el) => el.classList.remove('voice-current'));
+    elementFor(index)?.classList.add('voice-current');
+  };
+  const followCurrent = () => {
+    if (Date.now() < userScrollUntil) return;
+    const el = elementFor(index);
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    if (rect.top < 100 || rect.top > innerHeight * 0.6) {
+      window.scrollTo({ top: window.scrollY + rect.top - 110, behavior: 'smooth' });
+    }
+  };
+  const load = (i, offset = 0) => {
+    index = i;
+    audio.src = tracks[i].src;
+    audio.playbackRate = speeds[speedIndex];
+    if (offset > 0) {
+      audio.addEventListener('loadedmetadata', () => { audio.currentTime = offset; }, { once: true });
+    }
+    markCurrent();
+    followCurrent();
+  };
+  const play = () => {
+    if (!audio.src) load(index);
+    wantPlaying = true;
+    audio.play().catch(() => { wantPlaying = false; setTransport(false); });
+  };
+  const pause = () => {
+    wantPlaying = false;
+    audio.pause();
+  };
+  const seekTo = (seconds) => {
+    const target = Math.max(0, Math.min(total - 0.5, seconds));
+    let i = starts.findIndex((start, n) => target >= start && (n === starts.length - 1 || target < starts[n + 1]));
+    if (i < 0) i = 0;
+    const offset = target - starts[i];
+    if (i === index && audio.src) audio.currentTime = offset;
+    else load(i, offset);
+    timeEl.textContent = fmt(target);
+    if (wantPlaying) audio.play().catch(() => {});
+  };
+  const openPlayer = () => {
+    player.hidden = false;
+    document.body.classList.add('player-open');
+  };
+  const closePlayer = () => {
+    pause();
+    audio.removeAttribute('src');
+    audio.load();
+    index = 0;
+    player.hidden = true;
+    document.body.classList.remove('player-open');
+    document.querySelectorAll('.voice-current').forEach((el) => el.classList.remove('voice-current'));
+    setTransport(false);
+    timeEl.textContent = '00:00';
+  };
+  const hideAll = () => { player.hidden = true; root.hidden = true; document.body.classList.remove('player-open'); };
+
+  audio.addEventListener('play', () => setTransport(true));
+  audio.addEventListener('pause', () => { if (!audio.ended) setTransport(false); });
+  audio.addEventListener('timeupdate', () => { timeEl.textContent = fmt(position()); });
+  audio.addEventListener('ended', () => {
+    if (index < tracks.length - 1) {
+      load(index + 1);
+      audio.play().catch(() => {});
+    } else {
+      wantPlaying = false;
+      index = 0;
+      audio.removeAttribute('src');
+      document.querySelectorAll('.voice-current').forEach((el) => el.classList.remove('voice-current'));
+      timeEl.textContent = '00:00';
+      setTransport(false);
+    }
+  });
+  audio.addEventListener('error', () => {
+    if (!audio.getAttribute('src')) return;
+    wantPlaying = false;
+    // If the recording cannot load, remove the controls rather than leave a dead button.
+    hideAll();
+  });
+
+  ['touchstart', 'pointerdown', 'wheel'].forEach((type) => window.addEventListener(type, (event) => {
+    if (!player.contains(event.target)) userScrollUntil = Date.now() + 5000;
+  }, { passive: true }));
+
+  inline.addEventListener('click', () => { openPlayer(); seekTo(position()); play(); });
+  toggle.addEventListener('click', () => {
+    if (wantPlaying && !audio.paused) pause();
+    else play();
+  });
+  back.addEventListener('click', () => seekTo(position() - 15));
+  forward.addEventListener('click', () => seekTo(position() + 15));
+  speedBtn.addEventListener('click', () => {
+    speedIndex = (speedIndex + 1) % speeds.length;
+    audio.playbackRate = speeds[speedIndex];
+    speedBtn.textContent = `${speeds[speedIndex]}×`;
+  });
+  close.addEventListener('click', closePlayer);
+  window.addEventListener('pagehide', () => audio.pause());
+
+  // Lock-screen and headphone controls on phones.
+  if ('mediaSession' in navigator) {
+    try {
+      navigator.mediaSession.metadata = new MediaMetadata({ title: document.title.split(' — ')[0], artist: 'Clif Code' });
+      navigator.mediaSession.setActionHandler('play', play);
+      navigator.mediaSession.setActionHandler('pause', pause);
+      navigator.mediaSession.setActionHandler('seekbackward', () => seekTo(position() - 15));
+      navigator.mediaSession.setActionHandler('seekforward', () => seekTo(position() + 15));
+    } catch {}
+  }
+}
+</script>
