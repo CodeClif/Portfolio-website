@@ -412,3 +412,15 @@
     height:30px;
   }
 }
+
+/* On phones, size each title to the screen width so it fits on one line when
+   it can (about 0.5em per character), never above 2rem or below 1.5rem. Longer
+   titles wrap naturally. */
+@media(max-width:600px){
+  .article-header h1.article-title--standard,
+  .article-header h1.article-title--long,
+  .article-header h1.article-title--very-long{
+    font-size:clamp(1.5rem,calc((100vw - 2rem) * 2 / var(--title-chars)),2rem);
+    line-height:1.15;
+  }
+}
