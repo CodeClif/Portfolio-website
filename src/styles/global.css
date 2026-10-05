@@ -391,7 +391,8 @@
    with the text colour, so it follows light and dark mode. */
 .identity-wordmark{
   display:block;
-  height:64px;
+  /* Same visual area as the old 2.15rem text name (~140x26px of ink). */
+  height:40px;
   aspect-ratio:415 / 192;
   background:currentColor;
   -webkit-mask:var(--wordmark) center / contain no-repeat;
@@ -410,6 +411,6 @@
 }
 @media(max-width:600px){
   .identity-wordmark{
-    height:46px;
+    height:30px;
   }
 }
