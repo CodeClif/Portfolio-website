@@ -12,13 +12,13 @@ const dateLabel = new Intl.DateTimeFormat('en-GB', {
 const slug = Astro.url.pathname.split('/').filter(Boolean).at(-1) || 'clif-code';
 const socialImage = `${base}og/${slug}.png`;
 
-// Words listed in titleKeep (separate phrases with "|") are joined with
-// non-breaking spaces so a wrapped title never splits them across lines.
-const keepTogether = (frontmatter.titleKeep ?? '').split('|').map((phrase) => phrase.trim()).filter(Boolean);
-const headingTitle = keepTogether.reduce(
-  (text, phrase) => text.replace(phrase, phrase.replaceAll(' ', '\u00A0')),
-  frontmatter.title
-);
+// Titles wrap naturally and fill each line. Only a very short last word
+// ("II", "me") is tied to the word before it so it never sits alone.
+const titleWords = frontmatter.title.trim().split(' ');
+const headingTitle =
+  titleWords.length > 2 && titleWords.at(-1).length <= 3
+    ? [...titleWords.slice(0, -2), `${titleWords.at(-2)}\u00A0${titleWords.at(-1)}`].join(' ')
+    : frontmatter.title;
 
 const titleLength = frontmatter.title.trim().length;
 const titleSizeClass =

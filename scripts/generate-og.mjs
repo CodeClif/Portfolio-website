@@ -21,12 +21,13 @@ function frontmatterValue(source, key) {
   return match[1].trim().replace(/^["']|["']$/g, '');
 }
 
-// Phrases from a post's titleKeep line stay on one line: their spaces are swapped
-// for a placeholder while wrapping and turned back into spaces afterwards.
+// As on the site, a very short last word ("II", "me") is tied to the word before it.
 const GLUE = '\u0001';
-const glueTitle = (title, keep = '') =>
-  keep.split('|').map((phrase) => phrase.trim()).filter(Boolean)
-    .reduce((text, phrase) => text.replace(phrase, phrase.replaceAll(' ', GLUE)), title);
+const glueShortTail = (title) => {
+  const words = title.trim().split(' ');
+  if (words.length <= 2 || words.at(-1).length > 3) return title;
+  return [...words.slice(0, -2), `${words.at(-2)}${GLUE}${words.at(-1)}`].join(' ');
+};
 
 function greedyLines(words, maxChars) {
   const lines = [];
@@ -43,12 +44,12 @@ function greedyLines(words, maxChars) {
   return lines;
 }
 
-// Wrap into as few lines as fit, then even them out so a short word like
-// "II" never sits alone. Text beyond maxLines ends with an ellipsis.
-function wrapWords(text, maxChars, maxLines = 3) {
+// Wrap into as few lines as fit and, when balance is on, even them out.
+// Text beyond maxLines ends with an ellipsis.
+function wrapWords(text, maxChars, maxLines = 3, balance = true) {
   const words = text.trim().split(/ +/);
   let lines = greedyLines(words, maxChars);
-  for (let width = Math.ceil(text.length / lines.length); width < maxChars; width++) {
+  for (let width = Math.ceil(text.length / lines.length); balance && width < maxChars; width++) {
     const balanced = greedyLines(words, width);
     if (balanced.length === lines.length) {
       lines = balanced;
@@ -70,7 +71,7 @@ const TEXT_WIDTH_CHARS = { title: [[24, 76, 19], [48, 64, 23], [Infinity, 56, 26
 
 function cardSvg({ title, description = '', meta = '' }) {
   const [, fontSize, maxChars] = TEXT_WIDTH_CHARS.title.find(([limit]) => title.length <= limit);
-  const titleLines = wrapWords(title, maxChars);
+  const titleLines = wrapWords(title, maxChars, 3, false);
   const titleLineHeight = Math.round(fontSize * 1.12);
   const titleTop = meta ? 196 : 150;
   // A three-line title leaves room for only two lines of description above the footer rule.
@@ -131,7 +132,6 @@ for (const file of files) {
   const title = frontmatterValue(source, 'title');
   const date = frontmatterValue(source, 'date');
   const type = frontmatterValue(source, 'type');
-  const titleKeep = frontmatterValue(source, 'titleKeep');
   const description = frontmatterValue(source, 'description').replaceAll('\\"', '"');
 
   if (!title) continue;
@@ -141,7 +141,7 @@ for (const file of files) {
 
   await renderPng(
     `${slug}.png`,
-    cardSvg({ title: glueTitle(title, titleKeep), description, meta })
+    cardSvg({ title: glueShortTail(title), description, meta })
   );
 }
 
