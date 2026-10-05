@@ -21,6 +21,13 @@ function frontmatterValue(source, key) {
   return match[1].trim().replace(/^["']|["']$/g, '');
 }
 
+// Phrases from a post's titleKeep line stay on one line: their spaces are swapped
+// for a placeholder while wrapping and turned back into spaces afterwards.
+const GLUE = '\u0001';
+const glueTitle = (title, keep = '') =>
+  keep.split('|').map((phrase) => phrase.trim()).filter(Boolean)
+    .reduce((text, phrase) => text.replace(phrase, phrase.replaceAll(' ', GLUE)), title);
+
 function greedyLines(words, maxChars) {
   const lines = [];
   let line = '';
@@ -39,7 +46,7 @@ function greedyLines(words, maxChars) {
 // Wrap into as few lines as fit, then even them out so a short word like
 // "II" never sits alone. Text beyond maxLines ends with an ellipsis.
 function wrapWords(text, maxChars, maxLines = 3) {
-  const words = text.trim().split(/\s+/);
+  const words = text.trim().split(/ +/);
   let lines = greedyLines(words, maxChars);
   for (let width = Math.ceil(text.length / lines.length); width < maxChars; width++) {
     const balanced = greedyLines(words, width);
@@ -59,7 +66,7 @@ function wrapWords(text, maxChars, maxLines = 3) {
 const brandMark = path.join(root, 'src/assets/brand/clif-code-wordmark-vertical.png');
 const MARK_HEIGHT = 486;
 // [max title length, font size, max characters per line] keeps titles clear of the brush mark.
-const TEXT_WIDTH_CHARS = { title: [[24, 76, 18], [48, 64, 21], [Infinity, 56, 24]], description: 48 };
+const TEXT_WIDTH_CHARS = { title: [[24, 76, 19], [48, 64, 23], [Infinity, 56, 26]], description: 48 };
 
 function cardSvg({ title, description = '', meta = '' }) {
   const [, fontSize, maxChars] = TEXT_WIDTH_CHARS.title.find(([limit]) => title.length <= limit);
@@ -76,7 +83,7 @@ function cardSvg({ title, description = '', meta = '' }) {
   return `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
     <rect width="1200" height="630" fill="#ffffff"/>
     ${meta ? text(72, 104, 24, 700, '#2563a6', meta, 'letter-spacing="1"') : ''}
-    ${titleLines.map((line, i) => text(72, titleTop + i * titleLineHeight, fontSize, 700, '#111111', line)).join('')}
+    ${titleLines.map((line, i) => text(72, titleTop + i * titleLineHeight, fontSize, 700, '#111111', line.replaceAll(GLUE, ' '))).join('')}
     ${descriptionLines.map((line, i) => text(72, descriptionTop + i * 40, 28, 400, '#555555', line)).join('')}
     <line x1="72" y1="522" x2="840" y2="522" stroke="#e2e5e9" stroke-width="2"/>
     ${text(72, 568, 26, 700, '#111111', 'clifcode.eth')}
@@ -124,6 +131,7 @@ for (const file of files) {
   const title = frontmatterValue(source, 'title');
   const date = frontmatterValue(source, 'date');
   const type = frontmatterValue(source, 'type');
+  const titleKeep = frontmatterValue(source, 'titleKeep');
   const description = frontmatterValue(source, 'description').replaceAll('\\"', '"');
 
   if (!title) continue;
@@ -133,7 +141,7 @@ for (const file of files) {
 
   await renderPng(
     `${slug}.png`,
-    cardSvg({ title, description, meta })
+    cardSvg({ title: glueTitle(title, titleKeep), description, meta })
   );
 }
 

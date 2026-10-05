@@ -12,6 +12,14 @@ const dateLabel = new Intl.DateTimeFormat('en-GB', {
 const slug = Astro.url.pathname.split('/').filter(Boolean).at(-1) || 'clif-code';
 const socialImage = `${base}og/${slug}.png`;
 
+// Words listed in titleKeep (separate phrases with "|") are joined with
+// non-breaking spaces so a wrapped title never splits them across lines.
+const keepTogether = (frontmatter.titleKeep ?? '').split('|').map((phrase) => phrase.trim()).filter(Boolean);
+const headingTitle = keepTogether.reduce(
+  (text, phrase) => text.replace(phrase, phrase.replaceAll(' ', '\u00A0')),
+  frontmatter.title
+);
+
 const titleLength = frontmatter.title.trim().length;
 const titleSizeClass =
   titleLength > 46 ? 'article-title--very-long' :
@@ -30,7 +38,7 @@ const titleSizeClass =
 >
   <article class="article-page article-body">
     <header class="article-header">
-      <h1 class={titleSizeClass}>{frontmatter.title}</h1>
+      <h1 class={titleSizeClass}>{headingTitle}</h1>
       <div class="article-title-rule" aria-hidden="true"></div>
       <div class="article-meta-row">
         <div class="article-meta">
