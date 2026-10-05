@@ -21,50 +21,74 @@ function frontmatterValue(source, key) {
   return match[1].trim().replace(/^["']|["']$/g, '');
 }
 
-function wrapWords(text, maxChars) {
-  const words = text.trim().split(/\s+/);
+// As on the site, a very short last word ("II", "me") is tied to the word before it.
+const GLUE = '\u0001';
+const glueShortTail = (title) => {
+  const words = title.trim().split(' ');
+  if (words.length <= 2 || words.at(-1).length > 3) return title;
+  return [...words.slice(0, -2), `${words.at(-2)}${GLUE}${words.at(-1)}`].join(' ');
+};
+
+function greedyLines(words, maxChars) {
   const lines = [];
   let line = '';
-
   for (const word of words) {
     const candidate = line ? `${line} ${word}` : word;
-    if (candidate.length <= maxChars || !line) {
-      line = candidate;
-    } else {
+    if (candidate.length <= maxChars || !line) line = candidate;
+    else {
       lines.push(line);
       line = word;
     }
   }
-
   if (line) lines.push(line);
-  return lines.slice(0, 3);
+  return lines;
 }
 
-function cardSvg({ title, meta = '', defaultCard = false }) {
-  const length = title.length;
-  const fontSize = defaultCard ? 78 : length > 58 ? 58 : length > 42 ? 64 : 72;
-  const maxChars = defaultCard ? 24 : length > 58 ? 35 : length > 42 ? 31 : 28;
-  const lines = wrapWords(title, maxChars);
-  const lineHeight = Math.round(fontSize * 1.15);
-  const startY = defaultCard ? 255 : 235;
-  const lastTitleY = startY + Math.max(0, lines.length - 1) * lineHeight;
-  const footerY = defaultCard ? 565 : Math.min(520, lastTitleY + 125);
+// Wrap into as few lines as fit and, when balance is on, even them out.
+// Text beyond maxLines ends with an ellipsis.
+function wrapWords(text, maxChars, maxLines = 3, balance = true) {
+  const words = text.trim().split(/ +/);
+  let lines = greedyLines(words, maxChars);
+  for (let width = Math.ceil(text.length / lines.length); balance && width < maxChars; width++) {
+    const balanced = greedyLines(words, width);
+    if (balanced.length === lines.length) {
+      lines = balanced;
+      break;
+    }
+  }
+  if (lines.length <= maxLines) return lines;
+  const kept = lines.slice(0, maxLines);
+  let last = kept[maxLines - 1];
+  while (last.length > maxChars - 1 || /[,.;:]$/.test(last)) last = last.replace(/\s*\S+$/, '');
+  kept[maxLines - 1] = `${last.replace(/[,.;:]$/, '')}…`;
+  return kept;
+}
 
-  const titleLines = lines
-    .map((line, index) =>
-      `<text x="72" y="${startY + index * lineHeight}" font-family="Arial, Helvetica, sans-serif" font-size="${fontSize}" font-weight="700" fill="#111111">${escapeXml(line)}</text>`
-    )
-    .join('');
+const brandMark = path.join(root, 'src/assets/brand/clif-code-wordmark-vertical.png');
+const MARK_HEIGHT = 486;
+// [max title length, font size, max characters per line] keeps titles clear of the brush mark.
+const TEXT_WIDTH_CHARS = { title: [[24, 76, 19], [48, 64, 23], [Infinity, 56, 26]], description: 48 };
+
+function cardSvg({ title, description = '', meta = '' }) {
+  const [, fontSize, maxChars] = TEXT_WIDTH_CHARS.title.find(([limit]) => title.length <= limit);
+  const titleLines = wrapWords(title, maxChars, 3, false);
+  const titleLineHeight = Math.round(fontSize * 1.12);
+  const titleTop = meta ? 196 : 150;
+  // A three-line title leaves room for only two lines of description above the footer rule.
+  const descriptionLines = description ? wrapWords(description, TEXT_WIDTH_CHARS.description, titleLines.length >= 3 ? 2 : 3) : [];
+  const descriptionTop = titleTop + (titleLines.length - 1) * titleLineHeight + 70;
+
+  const text = (x, y, size, weight, fill, value, extra = '') =>
+    `<text x="${x}" y="${y}" font-family="Arial, Helvetica, sans-serif" font-size="${size}" font-weight="${weight}" fill="${fill}" ${extra}>${escapeXml(value)}</text>`;
 
   return `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
     <rect width="1200" height="630" fill="#ffffff"/>
-    <circle cx="82" cy="82" r="7" fill="#2563a6"/>
-    <text x="102" y="94" font-family="Arial, Helvetica, sans-serif" font-size="34" font-weight="700" fill="#111111">Clif Code</text>
-    ${meta ? `<text x="1128" y="93" text-anchor="end" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="600" letter-spacing="0.8" fill="#2563a6">${escapeXml(meta)}</text>` : ''}
-    <line x1="72" y1="142" x2="1128" y2="142" stroke="#d8dde3" stroke-width="2"/>
-    ${titleLines}
-    <text x="72" y="${footerY}" font-family="Arial, Helvetica, sans-serif" font-size="27" fill="#666666">Building things, learning out loud.</text>
-    <text x="1128" y="${footerY}" text-anchor="end" font-family="Arial, Helvetica, sans-serif" font-size="24" fill="#7a7a7a">codeclif.github.io</text>
+    ${meta ? text(72, 104, 24, 700, '#2563a6', meta, 'letter-spacing="1"') : ''}
+    ${titleLines.map((line, i) => text(72, titleTop + i * titleLineHeight, fontSize, 700, '#111111', line.replaceAll(GLUE, ' '))).join('')}
+    ${descriptionLines.map((line, i) => text(72, descriptionTop + i * 40, 28, 400, '#555555', line)).join('')}
+    <line x1="72" y1="522" x2="840" y2="522" stroke="#e2e5e9" stroke-width="2"/>
+    ${text(72, 568, 26, 700, '#111111', 'clifcode.eth')}
+    ${text(250, 568, 26, 400, '#666666', 'Building things, learning out loud.')}
   </svg>`;
 }
 
@@ -80,8 +104,12 @@ function formatDate(raw) {
   }).format(date).toUpperCase();
 }
 
+// The vertical brush wordmark sits down the right edge of every card.
+const mark = await sharp(brandMark).resize({ height: MARK_HEIGHT }).toBuffer({ resolveWithObject: true });
+
 async function renderPng(filename, svg) {
   await sharp(Buffer.from(svg))
+    .composite([{ input: mark.data, left: 1128 - mark.info.width, top: Math.round((630 - MARK_HEIGHT) / 2) }])
     .png({ compressionLevel: 9 })
     .toFile(path.join(outputDir, filename));
 }
@@ -93,8 +121,7 @@ await renderPng(
   'clif-code.png',
   cardSvg({
     title: 'Building things, learning out loud.',
-    meta: 'CLIF CODE',
-    defaultCard: true
+    description: 'Notes, research and diary entries from Clif, a builder in Ghana.'
   })
 );
 
@@ -105,6 +132,7 @@ for (const file of files) {
   const title = frontmatterValue(source, 'title');
   const date = frontmatterValue(source, 'date');
   const type = frontmatterValue(source, 'type');
+  const description = frontmatterValue(source, 'description').replaceAll('\\"', '"');
 
   if (!title) continue;
 
@@ -113,7 +141,7 @@ for (const file of files) {
 
   await renderPng(
     `${slug}.png`,
-    cardSvg({ title, meta })
+    cardSvg({ title: glueShortTail(title), description, meta })
   );
 }
 

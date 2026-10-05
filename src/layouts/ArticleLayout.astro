@@ -12,6 +12,14 @@ const dateLabel = new Intl.DateTimeFormat('en-GB', {
 const slug = Astro.url.pathname.split('/').filter(Boolean).at(-1) || 'clif-code';
 const socialImage = `${base}og/${slug}.png`;
 
+// Titles wrap naturally and fill each line. Only a very short last word
+// ("II", "me") is tied to the word before it so it never sits alone.
+const titleWords = frontmatter.title.trim().split(' ');
+const headingTitle =
+  titleWords.length > 2 && titleWords.at(-1).length <= 3
+    ? [...titleWords.slice(0, -2), `${titleWords.at(-2)}\u00A0${titleWords.at(-1)}`].join(' ')
+    : frontmatter.title;
+
 const titleLength = frontmatter.title.trim().length;
 const titleSizeClass =
   titleLength > 46 ? 'article-title--very-long' :
@@ -30,7 +38,7 @@ const titleSizeClass =
 >
   <article class="article-page article-body">
     <header class="article-header">
-      <h1 class={titleSizeClass}>{frontmatter.title}</h1>
+      <h1 class={titleSizeClass} style={`--title-chars:${titleLength}`}>{headingTitle}</h1>
       <div class="article-title-rule" aria-hidden="true"></div>
       <div class="article-meta-row">
         <div class="article-meta">
