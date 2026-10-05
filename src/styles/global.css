@@ -386,3 +386,31 @@
     border-radius:10px;
   }
 }
+
+/* Brush-calligraphy wordmark in the home header. The ink is a mask filled
+   with the text colour, so it follows light and dark mode. */
+.identity-wordmark{
+  display:block;
+  /* Same visual area as the old 2.15rem text name (~140x26px of ink). */
+  height:40px;
+  aspect-ratio:415 / 192;
+  background:currentColor;
+  -webkit-mask:var(--wordmark) center / contain no-repeat;
+  mask:var(--wordmark) center / contain no-repeat;
+}
+.visually-hidden{
+  position:absolute;
+  width:1px;
+  height:1px;
+  margin:-1px;
+  padding:0;
+  overflow:hidden;
+  clip:rect(0 0 0 0);
+  white-space:nowrap;
+  border:0;
+}
+@media(max-width:600px){
+  .identity-wordmark{
+    height:30px;
+  }
+}

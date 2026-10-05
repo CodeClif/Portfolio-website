@@ -1,5 +1,7 @@
 ---
 import '../styles/global.css';
+// Embedded as a data URI so the logo can never 404 against a stale IPFS gateway cache.
+import wordmark from '../assets/brand/clif-code-wordmark.webp?inline';
 
 const base = import.meta.env.BASE_URL;
 const {
@@ -69,7 +71,10 @@ const nav = [
       <>
         <header class="hero">
           <a class="identity-name" href={url()} aria-label="Clif Code home">
-            <h1>Clif Code</h1>
+            <h1>
+              <span class="identity-wordmark" style={`--wordmark: url("${wordmark}")`} aria-hidden="true"></span>
+              <span class="visually-hidden">Clif Code</span>
+            </h1>
           </a>
 
           <button class="theme-control" id="themeToggle" type="button" aria-label="Toggle dark mode" aria-pressed="false">
