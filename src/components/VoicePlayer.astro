@@ -1,13 +1,14 @@
 ---
-// Plays a page's recorded reading: one audio file per block of text, played in
-// order as a single reading. Each track's id matches a data-voice attribute on
-// the element it reads, which is highlighted while its track plays.
-const { tracks = [] } = Astro.props;
+// Plays a page's recorded reading: its audio files in order, as one reading.
+// Each track's cues say when the reading reaches a heading or paragraph (by the
+// text it starts with), so that block is highlighted while it is being read.
+// `scope` is the selector of the element holding the text being read.
+const { tracks = [], scope = 'main' } = Astro.props;
 const totalSeconds = tracks.reduce((sum, track) => sum + track.seconds, 0);
 const minutes = Math.max(1, Math.round(totalSeconds / 60));
 ---
 {tracks.length > 0 && (
-  <div id="voiceRoot" data-tracks={JSON.stringify(tracks)}>
+  <div id="voiceRoot" data-tracks={JSON.stringify(tracks)} data-scope={scope}>
     <button class="inline-listen" id="voiceInline" type="button"><span aria-hidden="true">▶</span> Listen <span class="muted">· about {minutes} min</span></button>
 
     <div class="sticky-player" id="voicePlayer" role="group" aria-label="Audio reading" hidden>
@@ -55,8 +56,20 @@ if (root) {
     const s = Math.max(0, Math.floor(seconds));
     return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
   };
-  const elementFor = (i) => document.querySelector(`[data-voice="${tracks[i].id}"]`);
   const position = () => starts[index] + (audio.currentTime || 0);
+
+  // Find each cue's heading or paragraph once, by the text it starts with.
+  const clean = (text) => text.replace(/[\u2018\u2019]/g, "'").replace(/\s+/g, ' ').trim().toLowerCase();
+  const blocks = [...(document.querySelector(root.dataset.scope) || document).querySelectorAll('h1, h2, h3, p, li, blockquote')];
+  tracks.forEach((track) => track.cues.forEach((cue) => {
+    cue.el = blocks.find((block) => clean(block.textContent).startsWith(clean(cue[1])));
+  }));
+  let currentEl = null;
+  const cueElement = () => {
+    const t = audio.currentTime || 0;
+    const cue = [...tracks[index].cues].reverse().find((c) => t >= c[0]) || tracks[index].cues[0];
+    return cue?.el;
+  };
 
   const setTransport = (playing) => {
     toggle.innerHTML = playing
@@ -64,13 +77,22 @@ if (root) {
       : '<span class="play-triangle" aria-hidden="true">▶</span>';
     toggle.setAttribute('aria-label', playing ? 'Pause' : 'Play');
   };
+  const clearMark = () => {
+    currentEl?.classList.remove('voice-current');
+    currentEl = null;
+  };
+  // Highlight the block being read, and bring it into view when it changes.
   const markCurrent = () => {
-    document.querySelectorAll('.voice-current').forEach((el) => el.classList.remove('voice-current'));
-    elementFor(index)?.classList.add('voice-current');
+    const el = audio.getAttribute('src') ? cueElement() : null;
+    if (el === currentEl) return;
+    clearMark();
+    currentEl = el || null;
+    currentEl?.classList.add('voice-current');
+    followCurrent();
   };
   const followCurrent = () => {
     if (Date.now() < userScrollUntil) return;
-    const el = elementFor(index);
+    const el = currentEl;
     if (!el) return;
     const rect = el.getBoundingClientRect();
     if (rect.top < 100 || rect.top > innerHeight * 0.6) {
@@ -82,10 +104,9 @@ if (root) {
     audio.src = tracks[i].src;
     audio.playbackRate = speeds[speedIndex];
     if (offset > 0) {
-      audio.addEventListener('loadedmetadata', () => { audio.currentTime = offset; }, { once: true });
+      audio.addEventListener('loadedmetadata', () => { audio.currentTime = offset; markCurrent(); }, { once: true });
     }
     markCurrent();
-    followCurrent();
   };
   const play = () => {
     if (!audio.src) load(index);
@@ -101,7 +122,7 @@ if (root) {
     let i = starts.findIndex((start, n) => target >= start && (n === starts.length - 1 || target < starts[n + 1]));
     if (i < 0) i = 0;
     const offset = target - starts[i];
-    if (i === index && audio.src) audio.currentTime = offset;
+    if (i === index && audio.src) { audio.currentTime = offset; markCurrent(); }
     else load(i, offset);
     timeEl.textContent = fmt(target);
     if (wantPlaying) audio.play().catch(() => {});
@@ -117,7 +138,7 @@ if (root) {
     index = 0;
     player.hidden = true;
     document.body.classList.remove('player-open');
-    document.querySelectorAll('.voice-current').forEach((el) => el.classList.remove('voice-current'));
+    clearMark();
     setTransport(false);
     timeEl.textContent = '00:00';
   };
@@ -125,7 +146,7 @@ if (root) {
 
   audio.addEventListener('play', () => setTransport(true));
   audio.addEventListener('pause', () => { if (!audio.ended) setTransport(false); });
-  audio.addEventListener('timeupdate', () => { timeEl.textContent = fmt(position()); });
+  audio.addEventListener('timeupdate', () => { timeEl.textContent = fmt(position()); markCurrent(); });
   audio.addEventListener('ended', () => {
     if (index < tracks.length - 1) {
       load(index + 1);
@@ -134,7 +155,7 @@ if (root) {
       wantPlaying = false;
       index = 0;
       audio.removeAttribute('src');
-      document.querySelectorAll('.voice-current').forEach((el) => el.classList.remove('voice-current'));
+      clearMark();
       timeEl.textContent = '00:00';
       setTransport(false);
     }

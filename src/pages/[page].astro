@@ -2,10 +2,7 @@
 import BaseLayout from '../layouts/BaseLayout.astro';
 import { pages } from '../data/pages.js';
 import VoicePlayer from '../components/VoicePlayer.astro';
-import aboutIntro from '../assets/audio/about/about-intro.m4a';
-import aboutOpening from '../assets/audio/about/about-opening.m4a';
-import aboutBuilding from '../assets/audio/about/about-what-i-am-building.m4a';
-import aboutWork from '../assets/audio/about/about-how-i-like-to-work.m4a';
+import { recordings } from '../data/recordings.js';
 
 const base = import.meta.env.BASE_URL;
 const url = (path = '') => path ? `${base}${path.replace(/^\//, '').replace(/\/$/, '')}/` : base;
@@ -14,35 +11,15 @@ export function getStaticPaths(){
   return pages.map((page)=>({params:{page:page.slug},props:{page}}));
 }
 const { page } = Astro.props;
-
-// Recorded readings, in reading order. A block without a recording is simply
-// skipped; add its file here once it has been recorded. Seconds are the clip lengths.
-const recordings = {
-  about: {
-    intro: { src: aboutIntro, seconds: 17.1 },
-    opening: { src: aboutOpening, seconds: 27.4 },
-    sections: {
-      'What I am building': { src: aboutBuilding, seconds: 41.1 },
-      'How I like to work': { src: aboutWork, seconds: 60.2 }
-    }
-  }
-}[page.slug];
-const sectionId = (title) => `section-${title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}`;
-const voiceTracks = recordings ? [
-  recordings.intro && { id: 'intro', ...recordings.intro },
-  recordings.opening && { id: 'opening', ...recordings.opening },
-  ...(page.sections ?? []).filter((section) => recordings.sections?.[section.title])
-    .map((section) => ({ id: sectionId(section.title), ...recordings.sections[section.title] }))
-].filter(Boolean) : [];
 ---
 <BaseLayout title={page.title} description={page.intro} current={page.title}>
   <section class:list={['page-content', page.slug === 'about' && 'about-page']}>
     <h1>{page.title}</h1>
-    <p class="page-intro" data-voice={recordings?.intro ? 'intro' : undefined}>{page.intro}</p>
-    <VoicePlayer tracks={voiceTracks} />
-    {page.paragraphs?.map((p, i)=><p data-voice={i === 0 && recordings?.opening ? 'opening' : undefined}>{p}</p>)}
+    <p class="page-intro">{page.intro}</p>
+    <VoicePlayer tracks={recordings[page.slug]} scope=".page-content" />
+    {page.paragraphs?.map((p)=><p>{p}</p>)}
     {page.sections?.map((section)=>
-      <section class="page-section" data-voice={recordings?.sections?.[section.title] ? sectionId(section.title) : undefined}>
+      <section class="page-section">
         <h2>{section.title}</h2>
         {section.paragraphs?.map((p)=><p>{p}</p>)}
         {section.links && <div class="about-links">
