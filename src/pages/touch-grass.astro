@@ -1,0 +1,122 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+
+const base = import.meta.env.BASE_URL;
+---
+<BaseLayout
+  title="Touch grass"
+  description="A hill of grass you can run your hand through, in the morning, at golden hour or at night."
+  immersive={true}
+>
+  <div class="grass-page">
+    <canvas id="grassCanvas" aria-label="A grassy hill with a tree on top. Move or drag across it to run your hand through the grass."></canvas>
+
+    <a class="grass-home" href={base}>← Clif Code</a>
+
+    <div class="grass-modes" role="radiogroup" aria-label="Time of day">
+      <button type="button" role="radio" data-mode="morning" aria-checked="false">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="3"/><path d="M8 1.5v1.6M8 12.9v1.6M1.5 8h1.6M12.9 8h1.6M3.4 3.4l1.1 1.1M11.5 11.5l1.1 1.1M3.4 12.6l1.1-1.1M11.5 4.5l1.1-1.1"/></svg>
+        Morning
+      </button>
+      <button type="button" role="radio" data-mode="golden" aria-checked="false">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 11a4.5 4.5 0 0 1 9 0M1.5 13.5h13M8 3.5v1.6M3 6l1.1 1.1M13 6l-1.1 1.1"/></svg>
+        Golden
+      </button>
+      <button type="button" role="radio" data-mode="night" aria-checked="false">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M13 9.6A5.5 5.5 0 0 1 6.4 3a5.5 5.5 0 1 0 6.6 6.6z"/></svg>
+        Night
+      </button>
+    </div>
+
+    <p class="grass-hint" id="grassHint">Run your hand through the grass</p>
+    <p class="grass-fallback" id="grassFallback" hidden>This needs WebGL, which your browser has turned off. Go outside instead.</p>
+  </div>
+</BaseLayout>
+
+<style>
+  :global(body:has(.grass-page)) { margin: 0; overflow: hidden; background: #c9dbe3; }
+  .grass-page { position: fixed; inset: 0; overflow: hidden; }
+  #grassCanvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: grab; }
+  #grassCanvas:active { cursor: grabbing; }
+
+  .grass-home {
+    position: absolute; top: max(16px, env(safe-area-inset-top)); left: 16px;
+    padding: 7px 12px; border-radius: 999px; font-size: .84rem; font-weight: 600;
+    color: #1a1a1a; background: rgba(255,255,255,.62); text-decoration: none;
+    backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    box-shadow: 0 2px 12px rgba(0,0,0,.08);
+  }
+  .grass-home:hover { text-decoration: none; background: rgba(255,255,255,.8); }
+
+  .grass-modes {
+    position: absolute; top: max(16px, env(safe-area-inset-top)); left: 50%; transform: translateX(-50%);
+    display: flex; gap: 2px; padding: 4px; border-radius: 999px;
+    background: rgba(255,255,255,.45); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+    box-shadow: 0 2px 14px rgba(0,0,0,.08), inset 0 0 0 1px rgba(255,255,255,.5);
+  }
+  .grass-modes button {
+    display: flex; align-items: center; gap: 6px; padding: 7px 13px; border: 0; border-radius: 999px;
+    font: 600 .82rem/1 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    color: rgba(20,20,20,.62); background: transparent; cursor: pointer;
+    transition: background .25s, color .25s;
+  }
+  .grass-modes button[aria-checked="true"] { color: #111; background: rgba(255,255,255,.92); box-shadow: 0 1px 6px rgba(0,0,0,.1); }
+  .grass-modes svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; }
+  .grass-modes button[data-mode="night"] svg { fill: currentColor; stroke: none; }
+
+  .grass-hint {
+    position: absolute; left: 50%; bottom: max(26px, env(safe-area-inset-bottom)); transform: translateX(-50%);
+    margin: 0; padding: 8px 14px; border-radius: 999px; white-space: nowrap;
+    font: 500 .84rem/1 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    color: rgba(255,255,255,.95); background: rgba(0,0,0,.22);
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    transition: opacity .8s; pointer-events: none;
+  }
+  .grass-hint.is-gone { opacity: 0; }
+  .grass-fallback {
+    position: absolute; inset: auto 16px 40%; margin: 0; text-align: center;
+    font: 500 1rem/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #234;
+  }
+
+  @media (max-width: 600px) {
+    .grass-home { top: auto; bottom: max(18px, env(safe-area-inset-bottom)); left: 16px; }
+    .grass-modes { top: max(12px, env(safe-area-inset-top)); }
+    .grass-modes button { padding: 7px 10px; font-size: .78rem; gap: 5px; }
+    .grass-hint { bottom: max(66px, calc(env(safe-area-inset-bottom) + 48px)); }
+  }
+</style>
+
+<script>
+  import { startTouchGrass } from '../scripts/touch-grass.js';
+
+  const canvas = document.getElementById('grassCanvas');
+  const hint = document.getElementById('grassHint');
+  const buttons = [...document.querySelectorAll('.grass-modes button')];
+
+  // Open at the visitor's own time of day.
+  const hour = new Date().getHours();
+  const initial = hour >= 5 && hour < 15 ? 'morning' : hour >= 15 && hour < 19 ? 'golden' : 'night';
+
+  let hidden = false;
+  const grass = startTouchGrass({
+    canvas,
+    onTouch: () => {
+      if (hidden) return;
+      hidden = true;
+      setTimeout(() => hint.classList.add('is-gone'), 1200);
+    }
+  });
+
+  const select = (mode, instant = false) => {
+    buttons.forEach((b) => b.setAttribute('aria-checked', String(b.dataset.mode === mode)));
+    grass?.setMode(mode, instant);
+  };
+
+  if (!grass) {
+    document.getElementById('grassFallback').hidden = false;
+    hint.hidden = true;
+  } else {
+    select(initial, true);
+    buttons.forEach((b) => b.addEventListener('click', () => select(b.dataset.mode)));
+  }
+</script>
