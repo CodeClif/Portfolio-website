@@ -84,6 +84,51 @@ export function createFeedback() {
     });
   };
 
+  // a goat's "meeeh": a buzzy voice through two vowel-like filters, wobbling
+  const bleat = (gain = 0.12, pan = 0) => {
+    const now = ctx.currentTime;
+    const voice = ctx.createOscillator(); voice.type = 'sawtooth';
+    voice.frequency.setValueAtTime(430, now);
+    voice.frequency.linearRampToValueAtTime(390, now + 0.7);
+    const wobble = ctx.createOscillator(); wobble.frequency.value = 7.5;
+    const wobbleDepth = ctx.createGain(); wobbleDepth.gain.value = 28;
+    wobble.connect(wobbleDepth).connect(voice.frequency);
+    const vowelA = ctx.createBiquadFilter(); vowelA.type = 'bandpass'; vowelA.frequency.value = 1100; vowelA.Q.value = 4;
+    const vowelB = ctx.createBiquadFilter(); vowelB.type = 'bandpass'; vowelB.frequency.value = 2500; vowelB.Q.value = 5;
+    const env = ctx.createGain();
+    env.gain.setValueAtTime(0.0001, now);
+    env.gain.exponentialRampToValueAtTime(gain, now + 0.06);
+    env.gain.setValueAtTime(gain, now + 0.5);
+    env.gain.exponentialRampToValueAtTime(0.0001, now + 0.8);
+    // the stutter in "meh-eh-eh"
+    const stutter = ctx.createOscillator(); stutter.frequency.value = 11;
+    const stutterDepth = ctx.createGain(); stutterDepth.gain.value = gain * 0.45;
+    stutter.connect(stutterDepth).connect(env.gain);
+    const panner = ctx.createStereoPanner ? ctx.createStereoPanner() : ctx.createGain();
+    if (panner.pan) panner.pan.value = pan;
+    voice.connect(vowelA).connect(env);
+    voice.connect(vowelB).connect(env);
+    env.connect(panner).connect(master);
+    for (const o of [voice, wobble, stutter]) { o.start(now); o.stop(now + 0.85); }
+  };
+  // a shower: hissing noise that swells and fades, with drips landing close by
+  const shower = () => {
+    const now = ctx.currentTime;
+    const src = ctx.createBufferSource(); src.buffer = noise; src.loop = true;
+    const band = ctx.createBiquadFilter(); band.type = 'bandpass'; band.frequency.value = 2200; band.Q.value = 0.4;
+    const env = ctx.createGain();
+    env.gain.setValueAtTime(0.0001, now);
+    env.gain.exponentialRampToValueAtTime(0.22, now + 1.2);
+    env.gain.setValueAtTime(0.22, now + 6.5);
+    env.gain.exponentialRampToValueAtTime(0.0001, now + 8.5);
+    src.connect(band).connect(env).connect(master);
+    src.start(now); src.stop(now + 8.6);
+    for (let i = 0; i < 28; i++) {
+      const at = now + 0.6 + Math.random() * 7;
+      tone(1200 + Math.random() * 1400, at, { gain: 0.025, decay: 0.05, attack: 0.002, pan: Math.random() * 1.6 - 0.8, slideTo: 2600 + Math.random() * 1200 });
+    }
+  };
+
   // ---- birds by day, crickets by night
   const chirp = () => {
     if (!ctx || scene === 'night') return;
@@ -168,6 +213,21 @@ export function createFeedback() {
       } else if (kind === 'shake') {
         if (sound) { burst(now, { freq: 1600, q: 0.6, gain: 0.35, decay: 0.55 }); burst(now + 0.08, { freq: 600, type: 'lowpass', gain: 0.25, decay: 0.45 }); }
         buzz(25);
+      } else if (kind === 'cut') {
+        // the swish of a cutlass through grass, with a little ring of the blade
+        if (sound) { burst(now, { freq: 4200, q: 1.1, gain: 0.3, decay: 0.13 }); tone(2700, now, { type: 'triangle', gain: 0.018, decay: 0.12, slideTo: 2000 }); }
+        buzz(8);
+      } else if (kind === 'rain') {
+        if (sound) shower();
+        buzz([10, 60, 10]);
+      } else if (kind === 'goat') {
+        if (sound) bleat(0.13, 0);
+        buzz([12, 30, 12]);
+      } else if (kind === 'goat-arrives') {
+        if (sound) bleat(0.05, Math.random() * 1.2 - 0.6);
+      } else if (kind === 'unlock') {
+        if (sound) bell([523.25, 659.25, 783.99, 1046.5, 1318.5], 0.08, 0.08);
+        buzz([20, 40, 20, 40, 60]);
       } else if (kind === 'level') {
         if (sound) bell([784, 988, 1175, 1568], 0.09, 0.08);
         buzz([15, 40, 15, 40, 30]);
