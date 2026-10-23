@@ -741,14 +741,18 @@ export function startTouchGrass({ canvas, onTouch, onEvent }) {
     pointerScreen.copy(pointer);
     raycaster.setFromCamera(pointer, camera);
   };
+  let lastMove = null;
   const updatePointer = (event) => {
     aim(event);
+    // how fast the hand is moving across the screen, in pixels per millisecond
+    const speed = lastMove ? Math.hypot(event.clientX - lastMove.x, event.clientY - lastMove.y) / Math.max(8, event.timeStamp - lastMove.t) : 0;
+    lastMove = { x: event.clientX, y: event.clientY, t: event.timeStamp };
     pointerOver = true;
     const point = grassUnder(raycaster.ray);
     if (!point) { hand.w = 0; return; }
     hand.set(point.x, point.y, point.z, 1);
     handSeen = timer.getElapsed();
-    onTouch?.();
+    onTouch?.(speed);
     if (point.distanceTo(lastTrail) > 0.45) {
       lastTrail.copy(point);
       touchPoints[trailIndex].set(point.x, point.y, point.z, 1);

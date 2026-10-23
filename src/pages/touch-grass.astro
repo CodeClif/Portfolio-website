@@ -8,6 +8,7 @@ const base = import.meta.env.BASE_URL;
   title="Touch grass"
   description="A hill of grass you can run your hand through, in the morning, at golden hour or at night. Find the four-leaf clover."
   immersive={true}
+  socialImage={`${base}share/touch-grass.png`}
 >
   <div class="grass-page" id="grassPage">
     <canvas id="grassCanvas" aria-label="A grassy hill with a tree on top. Move or drag across it to run your hand through the grass."></canvas>
@@ -33,6 +34,10 @@ const base = import.meta.env.BASE_URL;
     </div>
 
     <div class="grass-stats">
+      <button class="grass-sound glass" id="soundButton" type="button" aria-pressed="true" aria-label="Sound">
+        <svg class="grass-sound-on" viewBox="0 0 20 20" aria-hidden="true"><path d="M3.5 7.5h3l4-3.5v12l-4-3.5h-3z"/><path d="M13.5 7a4 4 0 0 1 0 6M15.8 4.8a7 7 0 0 1 0 10.4"/></svg>
+        <svg class="grass-sound-off" viewBox="0 0 20 20" aria-hidden="true"><path d="M3.5 7.5h3l4-3.5v12l-4-3.5h-3z"/><path d="M13.5 7.5l4 5M17.5 7.5l-4 5"/></svg>
+      </button>
       <button class="grass-stats-button glass" id="statsButton" type="button" aria-expanded="false" aria-controls="statsPanel">
         <span aria-hidden="true">🌱</span>
         <span>Lv <b id="statsLevel">1</b></span>
@@ -94,7 +99,7 @@ const base = import.meta.env.BASE_URL;
 
           <section>
             <h2>How to play</h2>
-            <p class="grass-tile grass-how">Run your hand through the grass to earn grass points. A four-leaf clover is hiding low in the grass near you: sweep around until it glints, then tap it. Tap flowers to pick them, tap a butterfly to say hello, and tap the tree to give it a shake.</p>
+            <p class="grass-tile grass-how">Turn your sound on, then run your hand through the grass to earn grass points. A four-leaf clover is hiding low in the grass near you: sweep around until it glints, then tap it. Tap flowers to pick them, tap a butterfly to say hello, and tap the tree to give it a shake.</p>
           </section>
         </div>
       </div>
@@ -176,7 +181,14 @@ const base = import.meta.env.BASE_URL;
   .grass-modes button[data-mode="night"] svg { fill: currentColor; stroke: none; }
 
   /* the stats capsule and its glass drop-down */
-  .grass-stats { position: absolute; top: max(16px, env(safe-area-inset-top)); right: 16px; z-index: 3; }
+  .grass-stats { position: absolute; top: max(16px, env(safe-area-inset-top)); right: 16px; z-index: 3; display: flex; gap: 8px; }
+  .grass-sound {
+    position: relative; width: 36px; height: 36px; padding: 0; border: 0; border-radius: 50%;
+    display: grid; place-items: center; cursor: pointer;
+  }
+  .grass-sound svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+  .grass-sound svg path:first-child { fill: currentColor; }
+  .grass-sound[aria-pressed="true"] .grass-sound-off, .grass-sound[aria-pressed="false"] .grass-sound-on { display: none; }
   .grass-stats-button {
     position: relative; display: flex; align-items: center; gap: 7px; padding: 8px 12px 8px 13px; border: 0; border-radius: 999px;
     font-family: inherit; font-size: .86rem; font-weight: 600; line-height: 1; cursor: pointer;
@@ -301,6 +313,7 @@ const base = import.meta.env.BASE_URL;
 
 <script>
   import { startTouchGrass } from '../scripts/touch-grass.js';
+  import { createFeedback } from '../scripts/grass-sound.js';
   import {
     SHARED, POINTS, BADGES, bumpShared, readShared, levelFor, loadStats, saveStats,
     recordVisit, newBadges, formatTime, formatCount
@@ -313,6 +326,17 @@ const base = import.meta.env.BASE_URL;
 
   // ---- your stats, kept in this browser
   const stats = loadStats();
+
+  // ---- sound and haptics; audio may only start once the visitor touches the page
+  const feedback = createFeedback();
+  const soundButton = $('soundButton');
+  const showSound = () => {
+    soundButton.setAttribute('aria-pressed', String(feedback.enabled));
+    soundButton.setAttribute('aria-label', feedback.enabled ? 'Sound on' : 'Sound off');
+  };
+  showSound();
+  soundButton.addEventListener('click', () => { feedback.setEnabled(!feedback.enabled); showSound(); });
+  for (const type of ['pointerdown', 'touchend', 'keydown']) addEventListener(type, () => feedback.unlock(), { passive: true });
   recordVisit(stats);
   let mode = 'morning';
 
@@ -394,14 +418,15 @@ const base = import.meta.env.BASE_URL;
   // ---- scoring
   let level = levelFor(stats.points).number;
   const changed = () => {
-    for (const badge of newBadges(stats)) toast(`${badge.icon} Badge: ${badge.name}`);
+    for (const badge of newBadges(stats)) { toast(`${badge.icon} Badge: ${badge.name}`); feedback.event('badge'); }
     const now = levelFor(stats.points);
-    if (now.number > level) toast(`🎉 Level ${now.number}: ${now.title}`);
+    if (now.number > level) { toast(`🎉 Level ${now.number}: ${now.title}`); feedback.event('level'); }
     level = now.number;
     render();
   };
   let lastShake = 0;
   const onEvent = (kind) => {
+    feedback.event(kind);
     if (kind === 'clover') {
       stats.clovers += 1; stats.points += POINTS.clover;
       toast('🍀 You found a four-leaf clover! +50');
@@ -458,7 +483,7 @@ const base = import.meta.env.BASE_URL;
 
   const grass = startTouchGrass({
     canvas,
-    onTouch: () => { lastTouch = performance.now(); },
+    onTouch: (speed) => { lastTouch = performance.now(); feedback.rustle(speed); },
     onEvent
   });
   window.touchGrass = grass;
@@ -466,6 +491,7 @@ const base = import.meta.env.BASE_URL;
   // ---- time of day; opens at the visitor's own time
   const select = (name, instant = false) => {
     mode = name;
+    feedback.setScene(name);
     $('grassPage').dataset.scene = name;
     modeButtons.forEach((b) => b.setAttribute('aria-checked', String(b.dataset.mode === name)));
     grass?.setMode(name, instant);
