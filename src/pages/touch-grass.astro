@@ -1,11 +1,12 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
+import { BADGES } from '../scripts/grass-game.js';
 
 const base = import.meta.env.BASE_URL;
 ---
 <BaseLayout
   title="Touch grass"
-  description="A hill of grass you can run your hand through, in the morning, at golden hour or at night."
+  description="A hill of grass you can run your hand through, in the morning, at golden hour or at night. Find the four-leaf clover."
   immersive={true}
 >
   <div class="grass-page">
@@ -28,6 +29,63 @@ const base = import.meta.env.BASE_URL;
       </button>
     </div>
 
+    <div class="grass-stats">
+      <button class="grass-stats-button" id="statsButton" type="button" aria-expanded="false" aria-controls="statsPanel">
+        <span aria-hidden="true">🌱</span>
+        <span>Lv <b id="statsLevel">1</b></span>
+        <span class="grass-stats-visitors" id="statsVisitorsShort"></span>
+        <svg class="grass-chevron" viewBox="0 0 12 12" aria-hidden="true"><path d="M3 4.5l3 3 3-3"/></svg>
+      </button>
+
+      <div class="grass-panel" id="statsPanel" hidden>
+        <header class="grass-panel-head">
+          <p class="grass-level"><span id="panelLevel">Level 1</span> · <span id="panelTitle">Indoor kid</span></p>
+          <div class="grass-progress"><i id="panelProgress"></i></div>
+          <p class="grass-small" id="panelPoints">0 grass points</p>
+        </header>
+
+        <section>
+          <h2>Everyone</h2>
+          <ul class="grass-grid">
+            <li><b id="sharedVisitors">—</b><span>people have touched grass here</span></li>
+            <li><b id="sharedMinutes">—</b><span>minutes of grass, together</span></li>
+            <li><b id="sharedClovers">—</b><span>four-leaf clovers found</span></li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>You</h2>
+          <ul class="grass-grid grass-grid--small">
+            <li><b id="youTime">0:00</b><span>touching grass</span></li>
+            <li><b id="youStreak">0</b><span>day streak</span></li>
+            <li><b id="youClovers">0</b><span>clovers found</span></li>
+            <li><b id="youFlowers">0</b><span>flowers picked</span></li>
+            <li><b id="youButterflies">0</b><span>butterflies met</span></li>
+            <li><b id="youShakes">0</b><span>tree shakes</span></li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Badges <span class="grass-small" id="badgeCount"></span></h2>
+          <ul class="grass-badges">
+            {BADGES.map((badge) => (
+              <li data-badge={badge.id} title={badge.hint}>
+                <span class="grass-badge-icon" aria-hidden="true">{badge.icon}</span>
+                <span class="grass-badge-name">{badge.name}</span>
+                <span class="grass-badge-hint">{badge.hint}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        <section class="grass-how">
+          <h2>How to play</h2>
+          <p>Run your hand through the grass to earn grass points. A four-leaf clover is hiding low in the grass near you: sweep around until it glints, then tap it. Tap flowers to pick them, tap a butterfly to say hello, and tap the tree to give it a shake.</p>
+        </section>
+      </div>
+    </div>
+
+    <div class="grass-toasts" id="toasts" aria-live="polite"></div>
     <p class="grass-hint" id="grassHint">Run your hand through the grass</p>
     <p class="grass-fallback" id="grassFallback" hidden>This needs WebGL, which your browser has turned off. Go outside instead.</p>
   </div>
@@ -35,7 +93,11 @@ const base = import.meta.env.BASE_URL;
 
 <style>
   :global(body:has(.grass-page)) { margin: 0; overflow: hidden; background: #c9dbe3; }
-  .grass-page { position: fixed; inset: 0; overflow: hidden; }
+  .grass-page {
+    position: fixed; inset: 0; overflow: hidden;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    --glass: rgba(255,255,255,.55); --glass-strong: rgba(255,255,255,.86); --ink: #141414; --ink-soft: rgba(20,20,20,.6);
+  }
   #grassCanvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: grab; }
   #grassCanvas:active { cursor: grabbing; }
 
@@ -56,82 +118,271 @@ const base = import.meta.env.BASE_URL;
   }
   .grass-modes button {
     display: flex; align-items: center; gap: 6px; padding: 7px 13px; border: 0; border-radius: 999px;
-    font: 600 .82rem/1 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    color: rgba(20,20,20,.62); background: transparent; cursor: pointer;
+    font-family: inherit; font-size: .82rem; font-weight: 600; line-height: 1;
+    color: var(--ink-soft); background: transparent; cursor: pointer;
     transition: background .25s, color .25s;
   }
   .grass-modes button[aria-checked="true"] { color: #111; background: rgba(255,255,255,.92); box-shadow: 0 1px 6px rgba(0,0,0,.1); }
   .grass-modes svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; }
   .grass-modes button[data-mode="night"] svg { fill: currentColor; stroke: none; }
 
+  /* stats button and its drop-down */
+  .grass-stats { position: absolute; top: max(16px, env(safe-area-inset-top)); right: 16px; z-index: 3; }
+  .grass-stats-button {
+    display: flex; align-items: center; gap: 7px; padding: 7px 11px 7px 12px; border: 0; border-radius: 999px;
+    font-family: inherit; font-size: .84rem; font-weight: 600; line-height: 1; color: var(--ink); cursor: pointer;
+    background: var(--glass); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+    box-shadow: 0 2px 14px rgba(0,0,0,.08), inset 0 0 0 1px rgba(255,255,255,.5);
+  }
+  .grass-stats-button:hover { background: rgba(255,255,255,.75); }
+  .grass-stats-visitors { font-weight: 500; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+  .grass-stats-visitors:empty { display: none; }
+  .grass-chevron { width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; transition: transform .2s; }
+  .grass-stats-button[aria-expanded="true"] .grass-chevron { transform: rotate(180deg); }
+
+  .grass-panel {
+    position: absolute; top: calc(100% + 8px); right: 0; width: 340px;
+    max-height: calc(100vh - 90px); max-height: calc(100dvh - 90px); overflow-y: auto; overscroll-behavior: contain;
+    padding: 16px; border-radius: 20px; color: var(--ink);
+    background: rgba(255,255,255,.78); backdrop-filter: blur(22px) saturate(140%); -webkit-backdrop-filter: blur(22px) saturate(140%);
+    box-shadow: 0 18px 50px rgba(0,0,0,.18), inset 0 0 0 1px rgba(255,255,255,.6);
+    transform-origin: top right; animation: panel-in .18s ease-out;
+  }
+  .grass-panel[hidden] { display: none; }
+  @keyframes panel-in { from { opacity: 0; transform: translateY(-6px) scale(.98); } }
+  .grass-panel section { margin-top: 16px; }
+  .grass-panel h2 { margin: 0 0 8px; font-size: .74rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-soft); }
+  .grass-level { margin: 0 0 8px; font-size: 1.02rem; font-weight: 700; }
+  .grass-progress { height: 8px; border-radius: 99px; background: rgba(0,0,0,.08); overflow: hidden; }
+  .grass-progress i { display: block; height: 100%; width: 0; border-radius: 99px; background: linear-gradient(90deg, #6cb52c, #b9d85a); transition: width .4s; }
+  .grass-small { margin: 6px 0 0; font-size: .78rem; font-weight: 500; color: var(--ink-soft); text-transform: none; letter-spacing: 0; }
+  .grass-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 0; padding: 0; list-style: none; }
+  .grass-grid li { padding: 10px 8px; border-radius: 14px; background: rgba(255,255,255,.7); text-align: center; }
+  .grass-grid b { display: block; font-size: 1.15rem; font-variant-numeric: tabular-nums; }
+  .grass-grid span { display: block; margin-top: 3px; font-size: .7rem; line-height: 1.25; color: var(--ink-soft); }
+  .grass-grid--small b { font-size: 1rem; }
+  .grass-badges { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: 0; padding: 0; list-style: none; }
+  .grass-badges li { display: grid; grid-template-columns: 26px 1fr; align-items: center; column-gap: 6px; padding: 7px 8px; border-radius: 12px; background: rgba(255,255,255,.7); }
+  .grass-badge-icon { grid-row: span 2; font-size: 1.2rem; text-align: center; }
+  .grass-badge-name { font-size: .76rem; font-weight: 650; line-height: 1.2; }
+  .grass-badge-hint { font-size: .66rem; line-height: 1.2; color: var(--ink-soft); }
+  .grass-badges li:not(.is-earned) .grass-badge-icon { filter: grayscale(1); opacity: .35; }
+  .grass-badges li:not(.is-earned) .grass-badge-name { color: var(--ink-soft); }
+  .grass-how p { margin: 0; font-size: .82rem; line-height: 1.5; color: rgba(20,20,20,.75); }
+
+  .grass-toasts { position: absolute; top: max(64px, calc(env(safe-area-inset-top) + 52px)); left: 50%; transform: translateX(-50%); display: grid; gap: 6px; justify-items: center; pointer-events: none; z-index: 2; }
+  .grass-toast {
+    padding: 9px 14px; border-radius: 999px; font-size: .86rem; font-weight: 600; color: var(--ink); white-space: nowrap;
+    background: var(--glass-strong); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+    box-shadow: 0 8px 24px rgba(0,0,0,.14); animation: toast-in .25s ease-out;
+  }
+  .grass-toast.is-leaving { opacity: 0; transform: translateY(-6px); transition: opacity .3s, transform .3s; }
+  @keyframes toast-in { from { opacity: 0; transform: translateY(-8px) scale(.96); } }
+
   .grass-hint {
     position: absolute; left: 50%; bottom: max(26px, env(safe-area-inset-bottom)); transform: translateX(-50%);
     margin: 0; padding: 8px 14px; border-radius: 999px; white-space: nowrap;
-    font: 500 .84rem/1 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: .84rem; font-weight: 500; line-height: 1;
     color: rgba(255,255,255,.95); background: rgba(0,0,0,.22);
     backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
     font-variant-numeric: tabular-nums; pointer-events: none;
   }
-  .grass-fallback {
-    position: absolute; inset: auto 16px 40%; margin: 0; text-align: center;
-    font: 500 1rem/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #234;
-  }
+  .grass-fallback { position: absolute; inset: auto 16px 40%; margin: 0; text-align: center; font-size: 1rem; line-height: 1.5; color: #234; }
 
   @media (max-width: 600px) {
     .grass-home { top: auto; bottom: max(18px, env(safe-area-inset-bottom)); left: 16px; }
     .grass-modes { top: max(12px, env(safe-area-inset-top)); }
     .grass-modes button { padding: 7px 10px; font-size: .78rem; gap: 5px; }
     .grass-hint { bottom: max(66px, calc(env(safe-area-inset-bottom) + 48px)); }
+    /* on phones the stats sit bottom-right and open upward as a sheet */
+    .grass-stats { top: auto; bottom: max(18px, env(safe-area-inset-bottom)); right: 16px; }
+    .grass-panel {
+      position: fixed; top: auto; left: 10px; right: 10px; bottom: max(66px, calc(env(safe-area-inset-bottom) + 50px));
+      width: auto; max-height: 72vh; max-height: 72dvh; transform-origin: bottom center;
+    }
+    .grass-toasts { top: max(58px, calc(env(safe-area-inset-top) + 48px)); }
+    .grass-toast { font-size: .8rem; }
   }
 </style>
 
 <script>
   import { startTouchGrass } from '../scripts/touch-grass.js';
+  import {
+    SHARED, POINTS, BADGES, bumpShared, readShared, levelFor, loadStats, saveStats,
+    recordVisit, newBadges, formatTime, formatCount
+  } from '../scripts/grass-game.js';
 
-  const canvas = document.getElementById('grassCanvas');
-  const hint = document.getElementById('grassHint');
-  const buttons = [...document.querySelectorAll('.grass-modes button')];
+  const $ = (id) => document.getElementById(id);
+  const canvas = $('grassCanvas');
+  const hint = $('grassHint');
+  const modeButtons = [...document.querySelectorAll('.grass-modes button')];
 
-  // Open at the visitor's own time of day.
-  const hour = new Date().getHours();
-  const initial = hour >= 5 && hour < 15 ? 'morning' : hour >= 15 && hour < 19 ? 'golden' : 'night';
+  // ---- your stats, kept in this browser
+  const stats = loadStats();
+  recordVisit(stats);
+  let mode = 'morning';
 
-  // A running count of how long you have actually been touching grass.
-  let touchedMs = 0, lastTouch = -1, lastTick = performance.now();
-  const clock = (ms) => {
-    const sec = Math.floor(ms / 1000);
-    return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
+  // ---- toasts for finds, badges and level-ups
+  const toasts = $('toasts');
+  const toast = (text) => {
+    const el = document.createElement('div');
+    el.className = 'grass-toast';
+    el.textContent = text;
+    toasts.append(el);
+    while (toasts.children.length > 3) toasts.firstChild.remove();
+    setTimeout(() => { el.classList.add('is-leaving'); setTimeout(() => el.remove(), 320); }, 2800);
   };
-  const caption = (ms) => {
-    const sec = ms / 1000;
+
+  // ---- the stats drop-down
+  const shared = { visitors: null, minutes: null, clovers: null };
+  let sharedReadAt = 0;
+  const statsButton = $('statsButton');
+  const panel = $('statsPanel');
+  const render = () => {
+    const level = levelFor(stats.points);
+    $('statsLevel').textContent = level.number;
+    $('statsVisitorsShort').textContent = shared.visitors ? `· ${formatCount(shared.visitors)} 👥` : '';
+    if (panel.hidden) return;
+    $('panelLevel').textContent = `Level ${level.number}`;
+    $('panelTitle').textContent = level.title;
+    $('panelProgress').style.width = `${Math.round(level.progress * 100)}%`;
+    $('panelPoints').textContent = level.next
+      ? `${formatCount(Math.floor(stats.points))} grass points · ${formatCount(level.next - Math.floor(stats.points))} to the next level`
+      : `${formatCount(Math.floor(stats.points))} grass points · top level`;
+    $('sharedVisitors').textContent = formatCount(shared.visitors);
+    $('sharedMinutes').textContent = formatCount(shared.minutes);
+    $('sharedClovers').textContent = formatCount(shared.clovers);
+    $('youTime').textContent = formatTime(stats.touchedMs);
+    $('youStreak').textContent = stats.streak;
+    $('youClovers').textContent = stats.clovers;
+    $('youFlowers').textContent = stats.flowers;
+    $('youButterflies').textContent = stats.butterflies;
+    $('youShakes').textContent = stats.shakes;
+    let earned = 0;
+    document.querySelectorAll('[data-badge]').forEach((el) => {
+      const has = Boolean(stats.badges[el.dataset.badge]);
+      el.classList.toggle('is-earned', has);
+      earned += has;
+    });
+    $('badgeCount').textContent = `${earned} of ${BADGES.length}`;
+  };
+  const refreshShared = async () => {
+    if (Date.now() - sharedReadAt < 20000) return;
+    sharedReadAt = Date.now();
+    const [visitors, minutes, clovers] = await Promise.all([readShared(SHARED.visitors), readShared(SHARED.minutes), readShared(SHARED.clovers)]);
+    if (visitors != null) shared.visitors = visitors;
+    if (minutes != null) shared.minutes = minutes;
+    if (clovers != null) shared.clovers = clovers;
+    render();
+  };
+  const setOpen = (open) => {
+    panel.hidden = !open;
+    statsButton.setAttribute('aria-expanded', String(open));
+    hint.style.visibility = open ? 'hidden' : '';
+    if (open) { render(); refreshShared(); }
+  };
+  statsButton.addEventListener('click', () => setOpen(panel.hidden));
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') setOpen(false); });
+  canvas.addEventListener('pointerdown', () => setOpen(false));
+
+  // Count each browser once as a visitor.
+  (async () => {
+    const value = stats.counted ? await readShared(SHARED.visitors) : await bumpShared(SHARED.visitors);
+    if (value != null) {
+      shared.visitors = value;
+      if (!stats.counted) { stats.counted = true; saveStats(stats); }
+    }
+    render();
+  })();
+
+  // ---- scoring
+  let level = levelFor(stats.points).number;
+  const changed = () => {
+    for (const badge of newBadges(stats)) toast(`${badge.icon} Badge: ${badge.name}`);
+    const now = levelFor(stats.points);
+    if (now.number > level) toast(`🎉 Level ${now.number}: ${now.title}`);
+    level = now.number;
+    render();
+  };
+  let lastShake = 0;
+  const onEvent = (kind) => {
+    if (kind === 'clover') {
+      stats.clovers += 1; stats.points += POINTS.clover;
+      toast('🍀 You found a four-leaf clover! +50');
+      bumpShared(SHARED.clovers).then((v) => { if (v != null) { shared.clovers = v; render(); } });
+    } else if (kind === 'flower') {
+      stats.flowers += 1; stats.points += POINTS.flower;
+      if (stats.flowers % 5 === 0) toast(`💐 ${stats.flowers} flowers picked`);
+    } else if (kind === 'butterfly') {
+      stats.butterflies += 1; stats.points += POINTS.butterfly;
+      toast('🦋 A butterfly says hello. +10');
+    } else if (kind === 'shake') {
+      stats.shakes += 1;
+      if (performance.now() - lastShake > 3000) stats.points += POINTS.shake;
+      lastShake = performance.now();
+    }
+    changed();
+    saveStats(stats);
+  };
+
+  // ---- the touched-grass timer
+  let sessionMs = 0, lastTouch = -1, lastTick = performance.now(), sharedMinutesSent = 0, nudged = false;
+  const caption = () => {
+    const sec = sessionMs / 1000;
     const note = sec >= 300 ? ' · certified grass toucher'
-      : sec >= 60 ? ' · look at you, outside'
-      : sec >= 15 && sec < 35 ? ' · now tap the tree' : '';
-    return `Touched grass for ${clock(ms)}${note}`;
+      : sec >= 60 && sec < 90 ? ' · look at you, outside'
+      : sec >= 12 && sec < 30 && !stats.clovers ? ' · find the four-leaf clover' : '';
+    return `Touched grass for ${formatTime(sessionMs)}${note}`;
   };
   const tick = (now) => {
-    if (now - lastTouch < 450) touchedMs += Math.min(now - lastTick, 100);
+    const step = Math.min(now - lastTick, 100);
     lastTick = now;
-    if (lastTouch > 0) hint.textContent = caption(touchedMs);
+    if (now - lastTouch < 450) {
+      sessionMs += step;
+      stats.touchedMs += step;
+      stats.points += (step / 1000) * POINTS.second;
+      stats.modes[mode] = true;
+      // add to everyone's minutes, one whole minute at a time
+      const minutes = Math.floor(sessionMs / 60000);
+      if (minutes > sharedMinutesSent) {
+        sharedMinutesSent = minutes;
+        bumpShared(SHARED.minutes).then((v) => { if (v != null) shared.minutes = v; });
+      }
+      if (!nudged && sessionMs > 20000 && !stats.clovers) {
+        nudged = true;
+        toast('🍀 Psst… a four-leaf clover is hiding in this grass');
+      }
+    }
+    if (lastTouch > 0) hint.textContent = caption();
     requestAnimationFrame(tick);
   };
   requestAnimationFrame(tick);
+  setInterval(() => { changed(); saveStats(stats); }, 2000);
+  addEventListener('pagehide', () => saveStats(stats));
 
   const grass = startTouchGrass({
     canvas,
-    onTouch: () => { lastTouch = performance.now(); }
+    onTouch: () => { lastTouch = performance.now(); },
+    onEvent
   });
+  window.touchGrass = grass;
 
-  const select = (mode, instant = false) => {
-    buttons.forEach((b) => b.setAttribute('aria-checked', String(b.dataset.mode === mode)));
-    grass?.setMode(mode, instant);
+  // ---- time of day; opens at the visitor's own time
+  const select = (name, instant = false) => {
+    mode = name;
+    modeButtons.forEach((b) => b.setAttribute('aria-checked', String(b.dataset.mode === name)));
+    grass?.setMode(name, instant);
   };
+  const hour = new Date().getHours();
+  const initial = hour >= 5 && hour < 15 ? 'morning' : hour >= 15 && hour < 19 ? 'golden' : 'night';
 
   if (!grass) {
-    document.getElementById('grassFallback').hidden = false;
+    $('grassFallback').hidden = false;
     hint.hidden = true;
   } else {
     select(initial, true);
-    buttons.forEach((b) => b.addEventListener('click', () => select(b.dataset.mode)));
+    modeButtons.forEach((b) => b.addEventListener('click', () => select(b.dataset.mode)));
   }
+  changed();
+  saveStats(stats);
 </script>

@@ -2,7 +2,8 @@
 // Grass is one instanced mesh whose blades sway in a vertex shader and bend away
 // from where the pointer has recently been, so the field parts and slowly recovers.
 // The tree is a branching trunk dressed in leaf cards; tap it and it sheds a few.
-// Butterflies come to your hand by day, fireflies by night.
+// Butterflies come to your hand by day, fireflies by night. A four-leaf clover
+// hides in the grass; flowers, butterflies and the tree can all be tapped.
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
@@ -42,7 +43,7 @@ const NOISE_GLSL = /* glsl */`
     return mix(mix(hash(i), hash(i + vec2(1, 0)), f.x), mix(hash(i + vec2(0, 1)), hash(i + vec2(1, 1)), f.x), f.y);
   }`;
 
-export function startTouchGrass({ canvas, onTouch }) {
+export function startTouchGrass({ canvas, onTouch, onEvent }) {
   const isSmall = Math.min(innerWidth, innerHeight) < 700;
   const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -414,9 +415,10 @@ export function startTouchGrass({ canvas, onTouch }) {
 
   // ---- flowers: a yellow meadow across the hill, and a few bright ones close by
   const flowerGeo = new THREE.BufferGeometry();
+  const NEAR_FLOWERS = isSmall ? 260 : 420; // the first ones, close enough to pick
   {
     const rand = mulberry32(9);
-    const near = isSmall ? 260 : 420, meadow = isSmall ? 1500 : 2600;
+    const near = NEAR_FLOWERS, meadow = isSmall ? 1500 : 2600;
     const n = near + meadow;
     const pos = new Float32Array(n * 3), col = new Float32Array(n * 3), data = new Float32Array(n * 2);
     const bright = [[0.92, 0.28, 0.26], [0.95, 0.45, 0.55], [0.36, 0.42, 0.9], [0.97, 0.6, 0.22], [0.97, 0.96, 0.92], [0.98, 0.84, 0.25]];
@@ -442,6 +444,8 @@ export function startTouchGrass({ canvas, onTouch }) {
     flowerGeo.setAttribute('color', new THREE.BufferAttribute(col, 3));
     flowerGeo.setAttribute('flower', new THREE.BufferAttribute(data, 2));
   }
+  const flowerSizes = flowerGeo.attributes.flower.array.slice();
+  const picked = []; // [index, time picked]
   const flowerUniforms = { ...shared, uDim: { value: 1 } };
   const flowers = new THREE.Points(flowerGeo, new THREE.ShaderMaterial({
     uniforms: flowerUniforms,
@@ -586,7 +590,8 @@ export function startTouchGrass({ canvas, onTouch }) {
       group, right, left, phase: Math.random() * 10,
       pos: new THREE.Vector3(x, height(x, z) + 1 + Math.random(), z),
       vel: new THREE.Vector3(), target: new THREE.Vector3(), retarget: 0,
-      orbit: new THREE.Vector3(Math.cos(i * 2.4), 0.5 + (i % 3) * 0.25, Math.sin(i * 2.4)).multiplyScalar(0.8)
+      orbit: new THREE.Vector3(Math.cos(i * 2.4), 0.5 + (i % 3) * 0.25, Math.sin(i * 2.4)).multiplyScalar(0.8),
+      happyUntil: 0, calmUntil: 0
     };
   });
 
@@ -634,40 +639,100 @@ export function startTouchGrass({ canvas, onTouch }) {
   const sparkPos = new Float32Array(SPARKS * 3).fill(-999);
   const sparkLife = new Float32Array(SPARKS);
   const sparkVel = new Float32Array(SPARKS * 3);
+  const sparkKind = new Float32Array(SPARKS); // 0: night touch, 1: golden burst
   const sparkGeo = new THREE.BufferGeometry();
   sparkGeo.setAttribute('position', new THREE.BufferAttribute(sparkPos, 3));
   sparkGeo.setAttribute('life', new THREE.BufferAttribute(sparkLife, 1));
+  sparkGeo.setAttribute('kind', new THREE.BufferAttribute(sparkKind, 1));
   const sparks = new THREE.Points(sparkGeo, new THREE.ShaderMaterial({
     blending: THREE.AdditiveBlending, transparent: true, depthWrite: false, uniforms: shared,
     vertexShader: /* glsl */`
-      attribute float life;
+      attribute float life, kind;
       uniform float uProj;
-      varying float vLife;
+      varying float vLife, vKind;
       void main() {
         vLife = life;
+        vKind = kind;
         vec4 mv = modelViewMatrix * vec4(position, 1.0);
         gl_PointSize = min(0.12 * uProj / -mv.z, 9.0 * uProj / 900.0);
         gl_Position = projectionMatrix * mv;
       }`,
     fragmentShader: /* glsl */`
       uniform float uNight;
-      varying float vLife;
+      varying float vLife, vKind;
       void main() {
         float r = length(gl_PointCoord - 0.5);
-        gl_FragColor = vec4(vec3(0.8, 1.0, 0.95) * smoothstep(0.5, 0.0, r) * vLife * uNight, 1.0);
+        vec3 col = mix(vec3(0.8, 1.0, 0.95), vec3(1.0, 0.86, 0.42), vKind);
+        gl_FragColor = vec4(col * smoothstep(0.5, 0.0, r) * vLife * max(uNight, vKind), 1.0);
       }`
   }));
   sparks.frustumCulled = false;
   scene.add(sparks);
   let nextSpark = 0;
-  const spawnSparks = (point, n) => {
+  const spawnSparks = (point, n, kind = 0, spread = 1.4) => {
     for (let k = 0; k < n; k++) {
       const i = nextSpark; nextSpark = (nextSpark + 1) % SPARKS;
-      sparkPos.set([point.x + (Math.random() - 0.5) * 1.4, point.y + 0.2 + Math.random() * 0.5, point.z + (Math.random() - 0.5) * 1.4], i * 3);
-      sparkVel.set([(Math.random() - 0.5) * 0.3, 0.35 + Math.random() * 0.5, (Math.random() - 0.5) * 0.3], i * 3);
+      sparkPos.set([point.x + (Math.random() - 0.5) * spread, point.y + 0.2 + Math.random() * 0.5, point.z + (Math.random() - 0.5) * spread], i * 3);
+      const burst = kind ? 1.6 : 0.3;
+      sparkVel.set([(Math.random() - 0.5) * burst, 0.35 + Math.random() * (kind ? 1.2 : 0.5), (Math.random() - 0.5) * burst], i * 3);
       sparkLife[i] = 1;
+      sparkKind[i] = kind;
     }
   };
+
+  // ---- a four-leaf clover hidden low in the grass; sweep the grass to find it
+  const drawTexture = (size, draw) => {
+    const c = document.createElement('canvas');
+    c.width = c.height = size;
+    draw(c.getContext('2d'), size);
+    const tex = new THREE.CanvasTexture(c);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    return tex;
+  };
+  const clover = new THREE.Sprite(new THREE.SpriteMaterial({
+    alphaTest: 0.5,
+    map: drawTexture(128, (g) => {
+      g.translate(64, 60);
+      g.strokeStyle = '#2f6b1f'; g.lineWidth = 5; g.lineCap = 'round';
+      g.beginPath(); g.moveTo(0, 6); g.quadraticCurveTo(6, 40, -2, 64); g.stroke();
+      for (let k = 0; k < 4; k++) {
+        g.save(); g.rotate(k * Math.PI / 2 + Math.PI / 4);
+        // a heart-shaped leaflet pointing out from the middle
+        g.fillStyle = '#3f9a2f';
+        g.beginPath(); g.moveTo(0, -2);
+        g.bezierCurveTo(-30, -14, -26, -50, -8, -46);
+        g.bezierCurveTo(-2, -45, 0, -38, 0, -34);
+        g.bezierCurveTo(0, -38, 2, -45, 8, -46);
+        g.bezierCurveTo(26, -50, 30, -14, 0, -2);
+        g.fill();
+        g.strokeStyle = '#8fd46a'; g.lineWidth = 2;
+        g.beginPath(); g.moveTo(0, -6); g.lineTo(0, -30); g.stroke();
+        g.restore();
+      }
+    })
+  }));
+  clover.scale.setScalar(0.36);
+  const glint = new THREE.Sprite(new THREE.SpriteMaterial({
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0,
+    map: drawTexture(64, (g, n) => {
+      const grad = g.createRadialGradient(n / 2, n / 2, 0, n / 2, n / 2, n / 2);
+      grad.addColorStop(0, 'rgba(255,255,230,1)'); grad.addColorStop(0.25, 'rgba(255,240,170,.5)'); grad.addColorStop(1, 'rgba(255,230,150,0)');
+      g.fillStyle = grad; g.fillRect(0, 0, n, n);
+      g.fillStyle = 'rgba(255,255,240,.9)';
+      g.fillRect(n / 2 - 1, 4, 2, n - 8); g.fillRect(4, n / 2 - 1, n - 8, 2);
+    })
+  }));
+  glint.scale.setScalar(0.6);
+  scene.add(clover, glint);
+  let cloverBack = 0; // when a new clover appears after one is found
+  const placeClover = () => {
+    // somewhere in view and within reach, never in the same spot twice
+    const d = 4 + Math.random() * 7, a = (Math.random() * 2 - 1) * 0.2;
+    const x = Math.sin(a) * d * 1.15, z = cameraHome.z - Math.cos(a) * d;
+    clover.position.set(x, height(x, z) + 0.26, z);
+    clover.visible = true;
+  };
+  placeClover();
 
   // ---- pointer
   const aim = (event) => {
@@ -693,14 +758,65 @@ export function startTouchGrass({ canvas, onTouch }) {
     }
   };
   canvas.addEventListener('pointermove', updatePointer);
+  // A tap (a quick press that barely moves) picks whatever is under it.
+  const projected = new THREE.Vector3();
+  const tap = (event) => {
+    const rect = canvas.getBoundingClientRect();
+    const px = event.clientX - rect.left, py = event.clientY - rect.top;
+    const away = (v) => {
+      projected.copy(v).project(camera);
+      if (projected.z > 1) return Infinity;
+      return Math.hypot((projected.x + 1) / 2 * rect.width - px, (1 - projected.y) / 2 * rect.height - py);
+    };
+    const t = timer.getElapsed();
+    const reach = isSmall ? 1.25 : 1;
+    if (clover.visible && away(clover.position) < 40 * reach) {
+      clover.visible = false;
+      cloverBack = t + 20;
+      spawnSparks(clover.position, 36, 1, 0.5);
+      onEvent?.('clover');
+      return;
+    }
+    if (state.night < 0.5) {
+      for (const b of butterflies) {
+        if (t > b.calmUntil && away(b.pos) < 36 * reach) {
+          b.happyUntil = t + 1.6; b.calmUntil = t + 5;
+          spawnSparks(b.pos, 8, 1, 0.3);
+          onEvent?.('butterfly');
+          return;
+        }
+      }
+    }
+    const fp = flowerGeo.attributes.position.array, fd = flowerGeo.attributes.flower.array;
+    let best = -1, bestAway = 30 * reach;
+    for (let i = 0; i < NEAR_FLOWERS; i++) {
+      if (fd[i * 2] === 0) continue;
+      const dist = away(projected.set(fp[i * 3], fp[i * 3 + 1], fp[i * 3 + 2]));
+      if (dist < bestAway) { best = i; bestAway = dist; }
+    }
+    if (best >= 0) {
+      fd[best * 2] = 0;
+      flowerGeo.attributes.flower.needsUpdate = true;
+      picked.push([best, t]);
+      spawnSparks(new THREE.Vector3(fp[best * 3], fp[best * 3 + 1] - 0.3, fp[best * 3 + 2]), 10, 1, 0.3);
+      onEvent?.('flower');
+      return;
+    }
+    aim(event);
+    if (raycaster.ray.intersectsSphere(crownSphere)) { shakeTree(); onEvent?.('shake'); }
+  };
+  let pressed = null;
   canvas.addEventListener('pointerdown', (e) => {
-    aim(e);
-    if (raycaster.ray.intersectsSphere(crownSphere)) { shakeTree(); return; }
+    pressed = { x: e.clientX, y: e.clientY, at: performance.now() };
     canvas.setPointerCapture?.(e.pointerId);
     updatePointer(e);
   });
   canvas.addEventListener('pointerleave', () => { pointerOver = false; hand.w = 0; });
-  canvas.addEventListener('pointerup', (e) => { if (e.pointerType !== 'mouse') { pointerOver = false; hand.w = 0; } });
+  canvas.addEventListener('pointerup', (e) => {
+    if (pressed && Math.hypot(e.clientX - pressed.x, e.clientY - pressed.y) < 12 && performance.now() - pressed.at < 450) tap(e);
+    pressed = null;
+    if (e.pointerType !== 'mouse') { pointerOver = false; hand.w = 0; }
+  });
 
   // ---- time of day
   let from = null, to = 'morning', blendStart = 0;
@@ -796,6 +912,20 @@ export function startTouchGrass({ canvas, onTouch }) {
       trailBorn[slot] = t;
     }
 
+    // the clover glints when your hand gets close, and a new one appears after a find
+    if (!clover.visible && t > cloverBack) placeClover();
+    const handNear = clover.visible && handActive ? clover.position.distanceTo(new THREE.Vector3(hand.x, hand.y, hand.z)) : 99;
+    const glow = Math.max(0, 1 - handNear / 2.4);
+    glint.material.opacity += ((glow > 0 ? 0.55 + 0.45 * Math.sin(t * 9) : 0) * glow - glint.material.opacity) * Math.min(1, dt * 8);
+    glint.position.copy(clover.position).add(new THREE.Vector3(0, 0.5, 0));
+    glint.visible = glint.material.opacity > 0.01;
+    // picked flowers grow back after a while
+    while (picked.length && t - picked[0][1] > 45) {
+      const [i] = picked.shift();
+      flowerGeo.attributes.flower.array[i * 2] = flowerSizes[i * 2];
+      flowerGeo.attributes.flower.needsUpdate = true;
+    }
+
     // tree settles after a shake; loose leaves drift down
     leafUniforms.uShake.value = Math.max(0, leafUniforms.uShake.value - dt * 1.2);
     for (let i = 0; i < FALLING; i++) {
@@ -820,6 +950,16 @@ export function startTouchGrass({ canvas, onTouch }) {
         const x = (Math.random() - 0.5) * 12, z = 2 + Math.random() * 9;
         b.target.set(x, height(x, z) + 0.8 + Math.random() * 1.2, z);
         b.retarget = t + 2 + Math.random() * 3;
+      }
+      if (t < b.happyUntil) {
+        // a delighted loop-the-loop
+        b.vel.set(Math.cos(t * 7 + b.phase) * 1.5, 0.6 + Math.sin(t * 7 + b.phase) * 1.2, Math.sin(t * 7 + b.phase) * 1.5);
+        b.pos.addScaledVector(b.vel, dt);
+        b.group.position.copy(b.pos);
+        b.group.rotation.y = Math.atan2(b.vel.x, b.vel.z);
+        const flap = 0.2 + Math.abs(Math.sin(t * 22 + b.phase)) * 1.2;
+        b.right.rotation.z = flap; b.left.rotation.z = -flap;
+        continue;
       }
       steer.copy(b.target).sub(b.pos);
       const dist = steer.length();
@@ -863,6 +1003,7 @@ export function startTouchGrass({ canvas, onTouch }) {
     }
     sparkGeo.attributes.position.needsUpdate = true;
     sparkGeo.attributes.life.needsUpdate = true;
+    sparkGeo.attributes.kind.needsUpdate = true;
 
     // a little parallax toward the pointer
     if (!reduceMotion) sway.lerp(pointerOver ? pointerScreen : restingSway, 0.03);
@@ -881,7 +1022,15 @@ export function startTouchGrass({ canvas, onTouch }) {
   applyState();
   requestAnimationFrame(frame);
 
-  return { setMode };
+  // Where the clover is on screen right now (for a hint), or null once it is found.
+  const whereIsClover = () => {
+    if (!clover.visible) return null;
+    const rect = canvas.getBoundingClientRect();
+    const p = clover.position.clone().project(camera);
+    return { x: rect.left + (p.x + 1) / 2 * rect.width, y: rect.top + (1 - p.y) / 2 * rect.height };
+  };
+
+  return { setMode, whereIsClover };
 }
 
 // Small deterministic random so the field looks the same on every visit.
