@@ -112,7 +112,9 @@ const base = import.meta.env.BASE_URL;
 </BaseLayout>
 
 <style>
-  :global(body:has(.grass-page)) { margin: 0; overflow: hidden; background: #c9dbe3; }
+  /* The page itself sits behind the 3D scene; keep it sky-coloured rather than white,
+     so a moment where the browser shows no frame is not a white flash. */
+  :global(html:has(.grass-page)), :global(body:has(.grass-page)) { margin: 0; overflow: hidden; background: #c9dbe3; }
   .grass-page {
     position: fixed; inset: 0; overflow: hidden;
     font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
@@ -474,7 +476,8 @@ const base = import.meta.env.BASE_URL;
         toast('🍀 Psst… a four-leaf clover is hiding in this grass');
       }
     }
-    if (lastTouch > 0) hint.textContent = caption();
+    // only touch the page when the words change, so the 3D scene is not repainted for nothing
+    if (lastTouch > 0) { const text = caption(); if (hint.textContent !== text) hint.textContent = text; }
     requestAnimationFrame(tick);
   };
   requestAnimationFrame(tick);

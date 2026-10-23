@@ -1,6 +1,6 @@
 // Sound and touch feedback for Touch grass, all made live with the Web Audio API:
 // grass that rustles as fast as you move through it, wind with birds by day and
-// crickets at night, and little chimes for finds. Phones also get a light tap.
+// crickets at night, and little chimes for finds. Android phones also vibrate.
 
 const STORE_KEY = 'clifcode-grass-sound';
 
@@ -112,30 +112,13 @@ export function createFeedback() {
     else birdTimer = setInterval(() => { if (Math.random() < 0.45) chirp(); }, 2600);
   };
 
-  // ---- haptics: vibration where the browser allows it; on iPhone, Safari's
-  // switch control gives a light tap when it toggles.
+  // ---- haptics: vibration where the browser allows it (Android). iPhones give
+  // web pages no vibration; the hidden-switch trick that fakes a tap there makes
+  // in-app browsers like X's and Claude's flash the 3D scene white, so it is not used.
   const canVibrate = typeof navigator.vibrate === 'function';
-  const isIOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-  const iosTap = () => {
-    try {
-      const label = document.createElement('label');
-      label.ariaHidden = 'true';
-      label.style.display = 'none';
-      const input = document.createElement('input');
-      input.type = 'checkbox';
-      input.setAttribute('switch', '');
-      label.append(input);
-      document.head.append(label);
-      label.click();
-      label.remove();
-    } catch {}
-  };
   const buzz = (pattern) => {
-    if (!enabled) return;
-    if (canVibrate) { try { navigator.vibrate(pattern); } catch {} return; }
-    if (!isIOS) return;
-    const taps = Array.isArray(pattern) ? Math.ceil(pattern.length / 2) : 1;
-    for (let i = 0; i < taps; i++) setTimeout(iosTap, i * 90);
+    if (!enabled || !canVibrate) return;
+    try { navigator.vibrate(pattern); } catch {}
   };
 
   // ---- what the page calls
