@@ -474,7 +474,8 @@ const base = import.meta.env.BASE_URL;
         toast('🍀 Psst… a four-leaf clover is hiding in this grass');
       }
     }
-    if (lastTouch > 0) hint.textContent = caption();
+    // only touch the page when the words change, so the 3D scene is not repainted for nothing
+    if (lastTouch > 0) { const text = caption(); if (hint.textContent !== text) hint.textContent = text; }
     requestAnimationFrame(tick);
   };
   requestAnimationFrame(tick);
