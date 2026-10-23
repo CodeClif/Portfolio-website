@@ -33,6 +33,20 @@ const base = import.meta.env.BASE_URL;
       </button>
     </div>
 
+    <div class="grass-tools glass" role="toolbar" aria-label="Tools" aria-orientation="vertical">
+      <button type="button" data-tool="hand" aria-pressed="true" aria-label="Hand: brush the grass">
+        <span aria-hidden="true">✋</span>
+      </button>
+      <button type="button" data-tool="cut" aria-pressed="false" aria-label="Cutlass: cut the grass" class="is-locked" id="cutlassButton">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path class="blade" d="M9.5 14.5 19.6 3.2c1-.9 2.3-.4 1.9.9-1 3.3-4.6 8.2-9.3 12.2z"/><path class="handle" d="M2.6 19.2l5.4-5.6 2.5 2.5-5.6 5.4a1.6 1.6 0 0 1-2.3-2.3z"/></svg>
+        <small class="grass-lock" aria-hidden="true">🔒</small>
+      </button>
+      <button type="button" id="rainButton" aria-label="Make it rain">
+        <span aria-hidden="true">🌧️</span>
+        <small class="grass-wait" id="rainWait"></small>
+      </button>
+    </div>
+
     <div class="grass-stats">
       <button class="grass-sound glass" id="soundButton" type="button" aria-pressed="true" aria-label="Sound">
         <svg class="grass-sound-on" viewBox="0 0 20 20" aria-hidden="true"><path d="M3.5 7.5h3l4-3.5v12l-4-3.5h-3z"/><path d="M13.5 7a4 4 0 0 1 0 6M15.8 4.8a7 7 0 0 1 0 10.4"/></svg>
@@ -67,8 +81,9 @@ const base = import.meta.env.BASE_URL;
               <span>people have touched grass here</span>
             </div>
             <div class="grass-pair">
-              <div class="grass-tile"><b id="sharedMinutes">—</b><span>minutes of grass, together</span></div>
-              <div class="grass-tile"><b id="sharedClovers">—</b><span>four-leaf clovers found</span></div>
+              <div class="grass-tile"><b id="sharedCutToday">—</b><span>blades cut today</span></div>
+              <div class="grass-tile"><b id="sharedMinutes">—</b><span>minutes together</span></div>
+              <div class="grass-tile"><b id="sharedClovers">—</b><span>clovers found</span></div>
             </div>
           </section>
 
@@ -78,9 +93,9 @@ const base = import.meta.env.BASE_URL;
               <li class="grass-tile"><b id="youTime">0:00</b><span>touching grass</span></li>
               <li class="grass-tile"><b id="youStreak">0</b><span>day streak</span></li>
               <li class="grass-tile"><b id="youClovers">0</b><span>clovers</span></li>
+              <li class="grass-tile"><b id="youCut">0</b><span>blades cut</span></li>
               <li class="grass-tile"><b id="youFlowers">0</b><span>flowers</span></li>
               <li class="grass-tile"><b id="youButterflies">0</b><span>butterflies</span></li>
-              <li class="grass-tile"><b id="youShakes">0</b><span>tree shakes</span></li>
             </ul>
           </section>
 
@@ -99,7 +114,7 @@ const base = import.meta.env.BASE_URL;
 
           <section>
             <h2>How to play</h2>
-            <p class="grass-tile grass-how">Turn your sound on, then run your hand through the grass to earn grass points. A four-leaf clover is hiding low in the grass near you: sweep around until it glints, then tap it. Tap flowers to pick them, tap a butterfly to say hello, and tap the tree to give it a shake.</p>
+            <p class="grass-tile grass-how">Turn your sound on, then run your hand through the grass to earn grass points. Touch grass for 30 seconds to earn a cutlass and clear the field; it grows back slowly, or fast if you make it rain. A four-leaf clover is hiding low in the grass near you: sweep around until it glints, then tap it. Tap flowers, butterflies, the tree, and the goat if it wanders by.</p>
           </section>
         </div>
       </div>
@@ -182,6 +197,33 @@ const base = import.meta.env.BASE_URL;
   .grass-modes svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; }
   .grass-modes button[data-mode="night"] svg { fill: currentColor; stroke: none; }
 
+  /* the tools: hand, cutlass, rain */
+  .grass-tools {
+    position: absolute; right: 16px; top: 50%; transform: translateY(-50%); z-index: 2;
+    display: grid; gap: 4px; padding: 5px; border-radius: 999px;
+  }
+  .grass-tools button {
+    position: relative; width: 44px; height: 44px; padding: 0; border: 0; border-radius: 50%;
+    display: grid; place-items: center; cursor: pointer; background: transparent; color: var(--ink);
+    font-size: 1.3rem; line-height: 1; transition: background .25s, box-shadow .25s, transform .15s;
+  }
+  .grass-tools button:active { transform: scale(.92); }
+  .grass-tools button[aria-pressed="true"] { background: var(--thumb); box-shadow: inset 0 1px 1px rgba(255, 255, 255, .7), 0 2px 10px rgba(0, 0, 0, .12); }
+  .grass-tools svg { width: 24px; height: 24px; }
+  .grass-tools .blade { fill: #d9dde2; stroke: #7d848c; stroke-width: .8; }
+  .grass-tools .handle { fill: #6b4423; }
+  .grass-lock, .grass-wait {
+    position: absolute; right: -2px; bottom: -2px; min-width: 18px; padding: 1px 4px; border-radius: 999px;
+    font-size: .62rem; font-weight: 700; line-height: 1.4; color: var(--ink); background: var(--thumb);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, .15);
+  }
+  .grass-wait:empty, .grass-tools button:not(.is-locked) .grass-lock { display: none; }
+  .grass-tools .is-locked svg { filter: grayscale(1); opacity: .45; }
+  .grass-tools .is-cooling > span { opacity: .4; }
+  .grass-tools .is-new { animation: tool-new 1.2s ease-in-out 3; }
+  @keyframes tool-new { 50% { transform: scale(1.18); box-shadow: 0 0 0 6px rgba(255, 214, 102, .55); } }
+  #grassCanvas.is-cutting { cursor: crosshair; }
+
   /* the stats capsule and its glass drop-down */
   .grass-stats { position: absolute; top: max(16px, env(safe-area-inset-top)); right: 16px; z-index: 3; display: flex; gap: 8px; }
   .grass-sound {
@@ -248,7 +290,9 @@ const base = import.meta.env.BASE_URL;
   .grass-hero { display: flex; align-items: baseline; gap: 10px; padding: 14px 16px; }
   .grass-hero b { font-size: 2.1rem; line-height: 1; }
   .grass-hero span { margin: 0; font-size: .86rem; }
-  .grass-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+  .grass-pair { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 8px; }
+  .grass-pair .grass-tile { padding: 11px 8px; text-align: center; }
+  .grass-pair .grass-tile b { font-size: 1.1rem; }
   .grass-you { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 0; padding: 0; list-style: none; }
   .grass-you .grass-tile { text-align: center; padding: 11px 6px; }
 
@@ -317,8 +361,8 @@ const base = import.meta.env.BASE_URL;
   import { startTouchGrass } from '../scripts/touch-grass.js';
   import { createFeedback } from '../scripts/grass-sound.js';
   import {
-    SHARED, POINTS, BADGES, bumpShared, readShared, levelFor, loadStats, saveStats,
-    recordVisit, newBadges, formatTime, formatCount
+    SHARED, POINTS, BADGES, CUT_BUNDLE, CUTLASS_AFTER_MS, cutTodayKey, bumpShared, readShared, levelFor,
+    loadStats, saveStats, recordVisit, newBadges, formatTime, formatCount
   } from '../scripts/grass-game.js';
 
   const $ = (id) => document.getElementById(id);
@@ -354,7 +398,7 @@ const base = import.meta.env.BASE_URL;
   };
 
   // ---- the stats drop-down
-  const shared = { visitors: null, minutes: null, clovers: null };
+  const shared = { visitors: null, minutes: null, clovers: null, cutToday: null };
   let sharedReadAt = 0;
   const statsButton = $('statsButton');
   const panel = $('statsPanel');
@@ -373,12 +417,13 @@ const base = import.meta.env.BASE_URL;
     $('sharedVisitors').textContent = formatCount(shared.visitors);
     $('sharedMinutes').textContent = formatCount(shared.minutes);
     $('sharedClovers').textContent = formatCount(shared.clovers);
+    $('sharedCutToday').textContent = shared.cutToday == null ? '—' : formatCount(shared.cutToday * CUT_BUNDLE);
+    $('youCut').textContent = formatCount(stats.cut);
     $('youTime').textContent = formatTime(stats.touchedMs);
     $('youStreak').textContent = stats.streak;
     $('youClovers').textContent = stats.clovers;
     $('youFlowers').textContent = stats.flowers;
     $('youButterflies').textContent = stats.butterflies;
-    $('youShakes').textContent = stats.shakes;
     let earned = 0;
     document.querySelectorAll('[data-badge]').forEach((el) => {
       const has = Boolean(stats.badges[el.dataset.badge]);
@@ -390,7 +435,10 @@ const base = import.meta.env.BASE_URL;
   const refreshShared = async () => {
     if (Date.now() - sharedReadAt < 20000) return;
     sharedReadAt = Date.now();
-    const [visitors, minutes, clovers] = await Promise.all([readShared(SHARED.visitors), readShared(SHARED.minutes), readShared(SHARED.clovers)]);
+    const [visitors, minutes, clovers, cutToday] = await Promise.all([
+      readShared(SHARED.visitors), readShared(SHARED.minutes), readShared(SHARED.clovers), readShared(cutTodayKey())
+    ]);
+    if (cutToday != null) shared.cutToday = cutToday;
     if (visitors != null) shared.visitors = visitors;
     if (minutes != null) shared.minutes = minutes;
     if (clovers != null) shared.clovers = clovers;
@@ -426,9 +474,18 @@ const base = import.meta.env.BASE_URL;
     level = now.number;
     render();
   };
-  let lastShake = 0;
-  const onEvent = (kind) => {
-    feedback.event(kind);
+  let lastShake = 0, lastCutSound = 0, cutCarry = 0, cutBundlesToSend = 0, goatSeen = false;
+  // cutting happens many times a second, so save and refresh the panel a moment later
+  let laterTimer = 0;
+  const later = () => { if (!laterTimer) laterTimer = setTimeout(() => { laterTimer = 0; changed(); saveStats(stats); }, 400); };
+  // send today's cut count up one bundle at a time, gently, so the counter is never rushed
+  setInterval(() => {
+    if (!cutBundlesToSend) return;
+    cutBundlesToSend -= 1;
+    bumpShared(cutTodayKey()).then((v) => { if (v != null) { shared.cutToday = v; render(); } });
+  }, 1200);
+  const onEvent = (kind, detail) => {
+    if (kind !== 'cut') feedback.event(kind);
     if (kind === 'clover') {
       stats.clovers += 1; stats.points += POINTS.clover;
       toast('🍀 You found a four-leaf clover! +50');
@@ -439,6 +496,23 @@ const base = import.meta.env.BASE_URL;
     } else if (kind === 'butterfly') {
       stats.butterflies += 1; stats.points += POINTS.butterfly;
       toast('🦋 A butterfly says hello. +10');
+    } else if (kind === 'cut') {
+      stats.cut += detail;
+      stats.points += detail / POINTS.bladesPerPoint;
+      cutCarry += detail;
+      while (cutCarry >= CUT_BUNDLE) { cutCarry -= CUT_BUNDLE; cutBundlesToSend += 1; }
+      // one swish at a time, however many blades a stroke takes
+      const now = performance.now();
+      if (now - lastCutSound > 110) { lastCutSound = now; feedback.event('cut'); }
+      return later();
+    } else if (kind === 'rain') {
+      if (detail) { stats.rains += 1; stats.points += POINTS.rain; toast('🌧️ Rain! The grass is growing back'); }
+      else toast('🌧️ A shower rolls in');
+    } else if (kind === 'goat') {
+      stats.goats += 1; stats.points += POINTS.goat;
+      toast('🐐 Meeeh! The goat says hi');
+    } else if (kind === 'goat-arrives') {
+      if (!goatSeen) { goatSeen = true; toast('🐐 A goat wandered in. Tap it to say hi'); }
     } else if (kind === 'shake') {
       stats.shakes += 1;
       if (performance.now() - lastShake > 3000) stats.points += POINTS.shake;
@@ -471,6 +545,7 @@ const base = import.meta.env.BASE_URL;
         sharedMinutesSent = minutes;
         bumpShared(SHARED.minutes).then((v) => { if (v != null) shared.minutes = v; });
       }
+      if (!hasCutlass && stats.touchedMs >= CUTLASS_AFTER_MS) unlockCutlass(true);
       if (!nudged && sessionMs > 20000 && !stats.clovers) {
         nudged = true;
         toast('🍀 Psst… a four-leaf clover is hiding in this grass');
@@ -483,6 +558,47 @@ const base = import.meta.env.BASE_URL;
   requestAnimationFrame(tick);
   setInterval(() => { changed(); saveStats(stats); }, 2000);
   addEventListener('pagehide', () => saveStats(stats));
+
+  // ---- tools: the hand, the cutlass (earned), and rain (with a cooldown)
+  const toolButtons = [...document.querySelectorAll('[data-tool]')];
+  const cutlassButton = $('cutlassButton');
+  let hasCutlass = false;
+  const unlockCutlass = (justNow) => {
+    hasCutlass = true;
+    cutlassButton.classList.remove('is-locked');
+    if (justNow) {
+      cutlassButton.classList.add('is-new');
+      toast('🗡️ You earned a cutlass! Pick it from the tools');
+      feedback.event('unlock');
+    }
+  };
+  if (stats.touchedMs >= CUTLASS_AFTER_MS) unlockCutlass(false);
+  const pickTool = (name) => {
+    toolButtons.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.tool === name)));
+    canvas.classList.toggle('is-cutting', name === 'cut');
+    grass?.setTool(name);
+  };
+  toolButtons.forEach((b) => b.addEventListener('click', () => {
+    if (b.dataset.tool === 'cut' && !hasCutlass) {
+      const left = Math.ceil((CUTLASS_AFTER_MS - stats.touchedMs) / 1000);
+      toast(`🔒 Touch grass for ${left} more second${left === 1 ? '' : 's'} to earn the cutlass`);
+      return;
+    }
+    cutlassButton.classList.remove('is-new');
+    pickTool(b.dataset.tool);
+  }));
+  const rainButton = $('rainButton');
+  let rainReadyAt = 0;
+  rainButton.addEventListener('click', () => {
+    const wait = grass?.rain() ?? 0;
+    if (wait > 0) { toast(`☁️ The clouds are refilling: ${wait}s`); return; }
+    rainReadyAt = performance.now() + 25000;
+  });
+  setInterval(() => {
+    const left = Math.ceil((rainReadyAt - performance.now()) / 1000);
+    $('rainWait').textContent = left > 0 ? left : '';
+    rainButton.classList.toggle('is-cooling', left > 0);
+  }, 250);
 
   const grass = startTouchGrass({
     canvas,

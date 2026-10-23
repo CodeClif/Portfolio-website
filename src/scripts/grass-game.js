@@ -6,6 +6,9 @@
 const COUNTER_API = 'https://abacus.jasoncameron.dev';
 const NAMESPACE = 'clifcode-eth';
 export const SHARED = { visitors: 'grass-visitors', minutes: 'grass-minutes', clovers: 'grass-clovers' };
+// Blades cut by everyone today (UTC), counted in bundles so the counter is not hit for every swing.
+export const CUT_BUNDLE = 1000;
+export const cutTodayKey = (now = new Date()) => `grass-cut-${now.toISOString().slice(0, 10)}`;
 
 async function counter(action, key) {
   const controller = new AbortController();
@@ -24,7 +27,10 @@ async function counter(action, key) {
 export const bumpShared = (key) => counter('hit', key);
 export const readShared = (key) => counter('get', key);
 
-export const POINTS = { second: 1, flower: 5, butterfly: 10, clover: 50, shake: 2 };
+export const POINTS = { second: 1, flower: 5, butterfly: 10, clover: 50, shake: 2, bladesPerPoint: 100, rain: 5, goat: 10 };
+
+// The cutlass is earned by touching grass for half a minute first.
+export const CUTLASS_AFTER_MS = 30e3;
 
 export const LEVELS = [
   [0, 'Indoor kid'], [30, 'Window gazer'], [100, 'Lawn visitor'], [250, 'Park regular'],
@@ -48,6 +54,11 @@ export const BADGES = [
   { id: 'bouquet', icon: '💐', name: 'Bouquet', hint: 'Pick ten flowers', test: (s) => s.flowers >= 10 },
   { id: 'butterfly', icon: '🦋', name: 'Butterfly whisperer', hint: 'Say hello to five butterflies', test: (s) => s.butterflies >= 5 },
   { id: 'shaker', icon: '🌳', name: 'Tree shaker', hint: 'Shake the tree five times', test: (s) => s.shakes >= 5 },
+  { id: 'cutlass', icon: '🗡️', name: 'Cutlass in hand', hint: 'Touch grass for 30 seconds', test: (s) => s.touchedMs >= CUTLASS_AFTER_MS },
+  { id: 'mower', icon: '🌾', name: 'Lawn mower', hint: 'Cut 10,000 blades of grass', test: (s) => s.cut >= 10000 },
+  { id: 'bald', icon: '🏜️', name: 'Bald hill', hint: 'Cut 50,000 blades of grass', test: (s) => s.cut >= 50000 },
+  { id: 'rain', icon: '🌧️', name: 'Rain maker', hint: 'Make it rain', test: (s) => s.rains >= 1 },
+  { id: 'goat', icon: '🐐', name: 'Goat friend', hint: 'Say hello to the goat', test: (s) => s.goats >= 1 },
   { id: 'night', icon: '🌙', name: 'Night owl', hint: 'Touch grass at night', test: (s) => s.modes.night },
   { id: 'golden', icon: '🌅', name: 'Golden hour', hint: 'Touch grass at golden hour', test: (s) => s.modes.golden },
   { id: 'allday', icon: '☀️', name: 'All day long', hint: 'Touch grass morning, golden hour and night', test: (s) => s.modes.morning && s.modes.golden && s.modes.night },
@@ -57,7 +68,7 @@ export const BADGES = [
 
 const STORE_KEY = 'clifcode-grass';
 const fresh = () => ({
-  points: 0, touchedMs: 0, flowers: 0, butterflies: 0, clovers: 0, shakes: 0,
+  points: 0, touchedMs: 0, flowers: 0, butterflies: 0, clovers: 0, shakes: 0, cut: 0, rains: 0, goats: 0,
   visits: 0, streak: 0, bestStreak: 0, lastDay: '', counted: false,
   modes: { morning: false, golden: false, night: false }, badges: {}
 });
