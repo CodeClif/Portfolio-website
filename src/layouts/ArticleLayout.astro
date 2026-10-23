@@ -1,5 +1,7 @@
 ---
 import BaseLayout from './BaseLayout.astro';
+import VoicePlayer from '../components/VoicePlayer.astro';
+import { recordings } from '../data/recordings.js';
 
 const { frontmatter } = Astro.props;
 const base = import.meta.env.BASE_URL;
@@ -48,6 +50,7 @@ const titleSizeClass =
         </div>
         <a class="all-posts" href={url()}>All posts</a>
       </div>
+      <VoicePlayer tracks={recordings[slug]} scope=".article-body" />
     </header>
     <slot />
     <section class="article-related"><span>Related:</span> <a href={url('projects')}>Projects</a></section>

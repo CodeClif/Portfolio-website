@@ -9,6 +9,8 @@ const {
   description = 'Building things, learning out loud.',
   current = '',
   articleMode = false,
+  // A full-screen page (like Touch grass) that brings its own chrome.
+  immersive = false,
   socialImage = `${base}og/clif-code.png`,
   socialType = 'website',
   publishedTime = '',
@@ -60,6 +62,7 @@ const nav = [
   <meta name="twitter:image:alt" content={socialImageAlt} />
 </head>
 <body>
+  {immersive ? <slot /> : (
   <main class="site-shell">
     {articleMode ? (
       <header class="article-site-chrome">
@@ -95,8 +98,9 @@ const nav = [
       </>
     )}
     <slot />
-    <footer class="footer">clifcode.eth</footer>
+    <footer class="footer">clifcode.eth · <a href={url('touch-grass')}>touch grass</a></footer>
   </main>
+  )}
 
   <script is:inline>
     (() => {
