@@ -1,34 +1,48 @@
 // A hill of grass you can run your hand through, at morning, golden hour or night.
 // Grass is one instanced mesh whose blades sway in a vertex shader and bend away
 // from where the pointer has recently been, so the field parts and slowly recovers.
+// The tree is a branching trunk dressed in leaf cards; tap it and it sheds a few.
+// Butterflies come to your hand by day, fireflies by night.
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 const TRAIL = 14; // recent touch points the grass remembers
-const TOUCH_RADIUS = 1.8;
+const TOUCH_RADIUS = 1.7;
 const RECOVER_SECONDS = 2.8;
 
 const MODES = {
   morning: {
-    skyTop: '#5f97d6', skyHorizon: '#d9e7ef', sunColor: '#fff6e0', sunDir: [0.24, 0.36, -1], sunSize: 0.99965,
-    light: '#fff3dc', lightIntensity: 2.2, hemiSky: '#bcd6ef', hemiGround: '#3d5a22', hemiIntensity: 1.1,
-    grassBase: '#0f3209', grassTip: '#7cb43a', ground: '#18350e', fog: '#c9dbe3', fogDensity: 0.012,
-    tree: '#55732f', clouds: 0.9, stars: 0, night: 0, exposure: 1.0
+    skyTop: '#4f8fd6', skyHorizon: '#d6e8f2', sunColor: '#fff6e0', sunDir: [0.22, 0.34, -1], sunSize: 0.99968,
+    light: '#fff3dc', lightIntensity: 2.4, hemiSky: '#bcd6ef', hemiGround: '#3d5a22', hemiIntensity: 1.15,
+    grassBase: '#0b3606', grassTip: '#6cb52c', grassDry: '#b9c845', ground: '#173a0c', fog: '#cfe0e8', fogDensity: 0.011,
+    leafLight: '#7fb342', leafDark: '#173a12', bark: '#4a3a2c', ridge: '#7d9cb3', clouds: 0.85, cloudShadow: 0.55,
+    stars: 0, night: 0
   },
   golden: {
-    skyTop: '#c98f8a', skyHorizon: '#f6c79a', sunColor: '#fff0d0', sunDir: [0.16, 0.13, -1], sunSize: 0.9996,
-    light: '#ffc58a', lightIntensity: 2.4, hemiSky: '#f3c3a0', hemiGround: '#4a4a1c', hemiIntensity: 0.95,
-    grassBase: '#163209', grassTip: '#76983a', ground: '#243510', fog: '#e9b993', fogDensity: 0.014,
-    tree: '#5b6430', clouds: 0.55, stars: 0, night: 0, exposure: 1.0
+    skyTop: '#b98f9f', skyHorizon: '#f8c694', sunColor: '#fff2d6', sunDir: [0.21, 0.1, -1], sunSize: 0.99962,
+    light: '#ffc88f', lightIntensity: 2.6, hemiSky: '#f3c3a0', hemiGround: '#4a4a1c', hemiIntensity: 1.0,
+    grassBase: '#163c08', grassTip: '#7bb032', grassDry: '#c2ad45', ground: '#213a0e', fog: '#efc39d', fogDensity: 0.013,
+    leafLight: '#8fa83e', leafDark: '#26351a', bark: '#4a3526', ridge: '#c79a8e', clouds: 0.6, cloudShadow: 0.35,
+    stars: 0, night: 0
   },
   night: {
-    skyTop: '#0d1238', skyHorizon: '#3a3a78', sunColor: '#f4f2ff', sunDir: [-0.2, 0.32, -1], sunSize: 0.99965,
-    light: '#8fa6ff', lightIntensity: 0.9, hemiSky: '#3a4a9a', hemiGround: '#0b1a1a', hemiIntensity: 0.75,
-    grassBase: '#020d0d', grassTip: '#0f4c40', ground: '#05161a', fog: '#25295c', fogDensity: 0.016,
-    tree: '#1d3d36', clouds: 0.08, stars: 1, night: 1, exposure: 1.0
+    skyTop: '#0b1036', skyHorizon: '#38397a', sunColor: '#f4f2ff', sunDir: [-0.2, 0.32, -1], sunSize: 0.99966,
+    light: '#8fa6ff', lightIntensity: 0.9, hemiSky: '#3a4a9a', hemiGround: '#0b1a1a', hemiIntensity: 0.7,
+    grassBase: '#020d0d', grassTip: '#105244', grassDry: '#1c5c4c', ground: '#04141a', fog: '#24285a', fogDensity: 0.016,
+    leafLight: '#285a52', leafDark: '#081a1d', bark: '#141a22', ridge: '#1d2150', clouds: 0.08, cloudShadow: 0,
+    stars: 1, night: 1
   }
 };
 
-export function startTouchGrass({ canvas, onReady, onTouch }) {
+// Small GLSL value noise shared by the grass and leaves.
+const NOISE_GLSL = /* glsl */`
+  float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+  float noise(vec2 p) {
+    vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+    return mix(mix(hash(i), hash(i + vec2(1, 0)), f.x), mix(hash(i + vec2(0, 1)), hash(i + vec2(1, 1)), f.x), f.y);
+  }`;
+
+export function startTouchGrass({ canvas, onTouch }) {
   const isSmall = Math.min(innerWidth, innerHeight) < 700;
   const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -43,9 +57,10 @@ export function startTouchGrass({ canvas, onReady, onTouch }) {
 
   const scene = new THREE.Scene();
   scene.fog = new THREE.FogExp2(0xc9dbe3, 0.012);
-  const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 400);
+  const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 500);
   const cameraHome = new THREE.Vector3(0, 1.45, 13);
   const lookTarget = new THREE.Vector3(0, 3.7, -20);
+  const timer = new THREE.Timer();
 
   // ---- terrain: a gentle field rising to a hill with the tree on top
   const HILL = new THREE.Vector2(0, -26);
@@ -54,29 +69,34 @@ export function startTouchGrass({ canvas, onReady, onTouch }) {
     return 7.2 * Math.exp(-(dx * dx + dz * dz)) + 0.12 * Math.sin(x * 0.21) * Math.cos(z * 0.17);
   };
 
-  // ---- shared, animated state (current values; lerped toward the target mode)
+  // ---- shared, animated state (current values; blended toward the chosen time of day)
   const state = {};
-  const color = (hex) => new THREE.Color(hex);
   const loadMode = (m) => Object.fromEntries(Object.entries(m).map(([k, v]) =>
-    [k, typeof v === 'string' ? color(v) : Array.isArray(v) ? new THREE.Vector3(...v).normalize() : v]));
+    [k, typeof v === 'string' ? new THREE.Color(v) : Array.isArray(v) ? new THREE.Vector3(...v).normalize() : v]));
   const modes = Object.fromEntries(Object.entries(MODES).map(([k, m]) => [k, loadMode(m)]));
   Object.assign(state, loadMode(MODES.morning));
 
-  // ---- lights for the tree and ground
   const hemi = new THREE.HemisphereLight();
   const sun = new THREE.DirectionalLight();
   scene.add(hemi, sun);
 
+  // Uniforms several materials share, updated once per frame.
+  const shared = {
+    uTime: { value: 0 }, uNight: { value: 0 }, uSunDir: { value: new THREE.Vector3() },
+    uLight: { value: new THREE.Color() }, uFog: { value: new THREE.Color() }, uFogDensity: { value: 0.012 },
+    uProj: { value: 500 } // pixels per unit at distance 1, for sizing points
+  };
+
   // ---- sky
   const skyUniforms = {
     uTop: { value: new THREE.Color() }, uHorizon: { value: new THREE.Color() },
-    uSunDir: { value: new THREE.Vector3() }, uSunColor: { value: new THREE.Color() },
-    uSunSize: { value: 0.999 }, uClouds: { value: 0 }, uStars: { value: 0 }, uNight: { value: 0 }, uTime: { value: 0 }
+    uSunColor: { value: new THREE.Color() }, uSunSize: { value: 0.999 }, uClouds: { value: 0 }, uStars: { value: 0 },
+    uSunDir: shared.uSunDir, uNight: shared.uNight, uTime: shared.uTime
   };
-  const sky = new THREE.Mesh(
-    new THREE.SphereGeometry(300, 32, 16),
+  scene.add(new THREE.Mesh(
+    new THREE.SphereGeometry(400, 32, 16),
     new THREE.ShaderMaterial({
-      side: THREE.BackSide, depthWrite: false, uniforms: skyUniforms,
+      side: THREE.BackSide, depthWrite: false, fog: false, uniforms: skyUniforms,
       vertexShader: /* glsl */`
         varying vec3 vDir;
         void main() {
@@ -87,11 +107,7 @@ export function startTouchGrass({ canvas, onReady, onTouch }) {
         uniform vec3 uTop, uHorizon, uSunDir, uSunColor;
         uniform float uSunSize, uClouds, uStars, uNight, uTime;
         varying vec3 vDir;
-        float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
-        float noise(vec2 p) {
-          vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
-          return mix(mix(hash(i), hash(i + vec2(1, 0)), f.x), mix(hash(i + vec2(0, 1)), hash(i + vec2(1, 1)), f.x), f.y);
-        }
+        ${NOISE_GLSL}
         float fbm(vec2 p) { float v = 0.0, a = 0.5; for (int i = 0; i < 5; i++) { v += a * noise(p); p *= 2.03; a *= 0.5; } return v; }
         void main() {
           vec3 d = normalize(vDir);
@@ -99,10 +115,11 @@ export function startTouchGrass({ canvas, onReady, onTouch }) {
           vec3 col = mix(uHorizon, uTop, pow(h, 0.55));
           float s = dot(d, uSunDir);
           col += uSunColor * (pow(max(s, 0.0), 24.0) * 0.3 + pow(max(s, 0.0), 600.0) * 0.5) * (1.0 - 0.6 * uNight);
-          // soft clouds in a band above the horizon
+          // soft clouds, lit from the sun's side
           vec2 cp = d.xz / max(d.y, 0.06) * 0.9 + vec2(uTime * 0.004, 0.0);
-          float c = smoothstep(0.52, 0.85, fbm(cp)) * smoothstep(0.02, 0.18, d.y) * uClouds;
-          col = mix(col, mix(vec3(1.0), uSunColor, 0.35) * (1.0 - 0.6 * uNight), c * 0.8);
+          float c = smoothstep(0.5, 0.85, fbm(cp)) * smoothstep(0.02, 0.18, d.y) * uClouds;
+          vec3 cloudCol = mix(vec3(1.0), uSunColor, 0.35) * (1.0 - 0.6 * uNight) * (0.88 + 0.2 * max(s, 0.0));
+          col = mix(col, cloudCol, c * 0.85);
           // stars
           vec2 sp = floor(d.xz / max(d.y, 0.08) * 160.0);
           float star = step(0.9965, hash(sp)) * smoothstep(0.05, 0.3, d.y);
@@ -114,11 +131,30 @@ export function startTouchGrass({ canvas, onReady, onTouch }) {
           #include <colorspace_fragment>
         }`
     })
-  );
-  scene.add(sky);
+  ));
+
+  // ---- far hills on the horizon, softened by the haze
+  const ridgeMat = new THREE.MeshBasicMaterial({ color: 0x7d9cb3 });
+  {
+    const rand = mulberry32(11);
+    for (const [z, peak, spread] of [[-150, 14, 0.035], [-120, 9, 0.05]]) {
+      const g = new THREE.PlaneGeometry(520, 30, 140, 1);
+      const p = g.attributes.position;
+      const phase = rand() * 10;
+      for (let i = 0; i < p.count; i++) {
+        if (p.getY(i) > 0) {
+          const x = p.getX(i);
+          p.setY(i, peak * (0.45 + 0.35 * Math.sin(x * spread + phase) + 0.2 * Math.sin(x * spread * 2.7 + phase * 2)));
+        } else p.setY(i, -12);
+      }
+      const ridge = new THREE.Mesh(g, ridgeMat);
+      ridge.position.z = z;
+      scene.add(ridge);
+    }
+  }
 
   // ---- ground
-  const groundGeo = new THREE.PlaneGeometry(220, 220, 160, 160);
+  const groundGeo = new THREE.PlaneGeometry(240, 240, 160, 160);
   groundGeo.rotateX(-Math.PI / 2);
   {
     const p = groundGeo.attributes.position;
@@ -126,50 +162,145 @@ export function startTouchGrass({ canvas, onReady, onTouch }) {
     groundGeo.computeVertexNormals();
   }
   const groundMat = new THREE.MeshLambertMaterial({ color: 0x2b4d18 });
-  const ground = new THREE.Mesh(groundGeo, groundMat);
-  scene.add(ground);
+  scene.add(new THREE.Mesh(groundGeo, groundMat));
 
-  // ---- tree on the hilltop
-  const treeMat = new THREE.MeshLambertMaterial({ color: 0x3e5a24 });
-  const trunkMat = new THREE.MeshLambertMaterial({ color: 0x3a2b1f });
-  const tree = new THREE.Group();
+  // ---- the tree: a branching trunk, dressed in leaves
+  const treeBase = new THREE.Vector3(HILL.x + 0.8, height(HILL.x + 0.8, HILL.y) - 0.1, HILL.y);
+  const crownCenter = treeBase.clone().add(new THREE.Vector3(0, 5.9, 0));
+  const crownSphere = new THREE.Sphere(crownCenter, 4.2);
+  const barkMat = new THREE.MeshLambertMaterial({ color: 0x4a3a2c });
+  const leafSpots = [];
   {
-    const base = new THREE.Vector3(HILL.x + 0.8, height(HILL.x + 0.8, HILL.y), HILL.y);
-    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.5, 4.2, 9), trunkMat);
-    trunk.position.set(base.x, base.y + 2.0, base.z);
-    tree.add(trunk);
     const rand = mulberry32(7);
-    // a broad crown made of lumpy blobs
-    const blobs = [[0, 5.4, 0, 2.6], [-2.1, 5.0, 0.3, 2.0], [2.1, 5.0, -0.2, 2.0], [-1.1, 6.4, 0, 1.9], [1.2, 6.5, 0.2, 1.9],
-      [-3.3, 4.6, 0, 1.4], [3.3, 4.7, 0, 1.4], [0, 4.4, 1.1, 1.8], [0, 6.9, -0.5, 1.5],
-      [-2.4, 6.0, 0.8, 1.2], [2.5, 6.0, 0.6, 1.2], [-1.6, 4.2, 1.2, 1.3], [1.7, 4.3, 1.1, 1.3]];
-    for (const [x, y, z, r] of blobs) {
-      const g = new THREE.IcosahedronGeometry(r, 3);
-      const pos = g.attributes.position;
-      const k = 2.4 / r, phase = rand() * 10;
-      for (let i = 0; i < pos.count; i++) {
-        const v = new THREE.Vector3().fromBufferAttribute(pos, i);
-        const lump = Math.sin(v.x * k + phase) * Math.sin(v.y * k * 1.3) * Math.sin(v.z * k + phase * 0.5);
-        v.multiplyScalar(1 + 0.13 * lump);
-        pos.setXYZ(i, v.x, v.y * 0.84, v.z);
+    const limbs = [];
+    const up = new THREE.Vector3(0, 1, 0);
+    const limb = (from, to, r0, r1) => {
+      const dir = to.clone().sub(from);
+      const g = new THREE.CylinderGeometry(r1, r0, dir.length(), 7, 1, true);
+      g.translate(0, dir.length() / 2, 0);
+      g.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(up, dir.clone().normalize()));
+      g.translate(from.x, from.y, from.z);
+      limbs.push(g);
+    };
+    const grow = (start, dir, length, radius, depth) => {
+      // a slight bend partway along each branch
+      const mid = start.clone().addScaledVector(dir, length * 0.5)
+        .add(new THREE.Vector3(rand() - 0.5, rand() * 0.3, rand() - 0.5).multiplyScalar(length * 0.15));
+      const end = mid.clone().addScaledVector(dir, length * 0.5);
+      limb(start, mid, radius, radius * 0.85);
+      limb(mid, end, radius * 0.85, radius * 0.68);
+      if (depth === 0) { leafSpots.push([end, 1]); return; }
+      if (depth === 1) leafSpots.push([mid, 0.75]);
+      const count = depth >= 2 ? 3 : 2 + (rand() < 0.5 ? 1 : 0);
+      for (let i = 0; i < count; i++) {
+        const spin = (i / count) * Math.PI * 2 + rand() * 0.9;
+        const tilt = 0.35 + rand() * 0.4;
+        const side = new THREE.Vector3(Math.cos(spin), 0, Math.sin(spin));
+        const next = dir.clone().multiplyScalar(Math.cos(tilt)).addScaledVector(side, Math.sin(tilt));
+        next.y = Math.max(next.y, 0.12); // reach out and up, never droop down
+        grow(end, next.normalize(), length * (0.68 + rand() * 0.12), radius * 0.62, depth - 1);
       }
-      g.computeVertexNormals();
-      const m = new THREE.Mesh(g, treeMat);
-      m.position.set(base.x + x, base.y + y, base.z + z);
-      tree.add(m);
+    };
+    const trunkTop = treeBase.clone().add(new THREE.Vector3(0.05, 3.1, 0));
+    limb(treeBase.clone().add(new THREE.Vector3(0, -0.4, 0)), trunkTop, 0.5, 0.36);
+    // three main limbs spread wide for a broad, rounded crown
+    for (const [x, y, z] of [[-0.62, 1, 0.1], [0.05, 1, -0.1], [0.62, 1, 0.05], [0, 1, 0.6], [0.05, 1, -0.55]]) {
+      grow(trunkTop, new THREE.Vector3(x, y, z).normalize(), 1.85, 0.26, 3);
     }
+    scene.add(new THREE.Mesh(mergeGeometries(limbs), barkMat));
   }
-  scene.add(tree);
+
+  // leaves: camera-facing cards, each drawn as a little cluster of leaf shapes
+  const LEAVES_PER_SPOT = isSmall ? 30 : 44;
+  const leafGeo = new THREE.InstancedBufferGeometry();
+  leafGeo.setAttribute('position', new THREE.Float32BufferAttribute([-0.5, -0.5, 0, 0.5, -0.5, 0, 0.5, 0.5, 0, -0.5, 0.5, 0], 3));
+  leafGeo.setAttribute('uv', new THREE.Float32BufferAttribute([0, 0, 1, 0, 1, 1, 0, 1], 2));
+  leafGeo.setIndex([0, 1, 2, 0, 2, 3]);
+  {
+    const rand = mulberry32(5);
+    const n = leafSpots.length * LEAVES_PER_SPOT;
+    const pos = new Float32Array(n * 3), data = new Float32Array(n * 4);
+    let k = 0;
+    for (const [spot, weight] of leafSpots) {
+      for (let i = 0; i < LEAVES_PER_SPOT; i++, k++) {
+        // a fluffy ball of leaves around each branch tip
+        const v = new THREE.Vector3(rand() * 2 - 1, rand() * 2 - 1, rand() * 2 - 1);
+        if (v.lengthSq() > 1) { i--; k--; continue; }
+        v.multiplyScalar(1.3 * weight).multiply(new THREE.Vector3(1, 0.8, 1));
+        pos.set([spot.x + v.x, spot.y + v.y + 0.15, spot.z + v.z], k * 3);
+        data.set([0.55 + rand() * 0.4, rand() * Math.PI * 2, rand(), rand() * 6.28], k * 4);
+      }
+    }
+    leafGeo.setAttribute('leaf', new THREE.InstancedBufferAttribute(pos, 3));
+    leafGeo.setAttribute('leafData', new THREE.InstancedBufferAttribute(data, 4));
+    leafGeo.instanceCount = n;
+  }
+  const leafUniforms = {
+    ...shared, uCrown: { value: crownCenter }, uCrownR: { value: 3.6 }, uShake: { value: 0 },
+    uLeafLight: { value: new THREE.Color() }, uLeafDark: { value: new THREE.Color() }
+  };
+  const leaves = new THREE.Mesh(leafGeo, new THREE.ShaderMaterial({
+    uniforms: leafUniforms, side: THREE.DoubleSide,
+    vertexShader: /* glsl */`
+      attribute vec3 leaf;
+      attribute vec4 leafData; // size, rotation, tint, phase
+      uniform float uTime, uShake, uCrownR;
+      uniform vec3 uCrown, uSunDir;
+      varying vec2 vUv;
+      varying float vShade, vTint, vRim, vDist;
+      void main() {
+        vec3 center = leaf;
+        center.x += sin(uTime * 1.3 + leafData.w + leaf.y) * 0.04 + sin(uTime * 31.0 + leafData.w) * 0.09 * uShake;
+        center.y += sin(uTime * 27.0 + leafData.w * 2.0) * 0.06 * uShake;
+        vec4 mv = viewMatrix * vec4(center, 1.0);
+        float c = cos(leafData.y), s = sin(leafData.y);
+        mv.xy += vec2(position.x * c - position.y * s, position.x * s + position.y * c) * leafData.x;
+        // light the crown as one rounded shape: bright toward the sun, darker inside and underneath
+        vec3 n = normalize(leaf - uCrown);
+        float depth = clamp(length((leaf - uCrown) * vec3(1.0, 1.25, 1.0)) / uCrownR, 0.0, 1.0);
+        vec3 key = normalize(vec3(uSunDir.x * 2.0, 0.9, 0.45));
+        float lit = max(dot(n, key), 0.0);
+        vShade = (0.2 + 0.8 * lit) * mix(0.4, 1.0, smoothstep(0.3, 0.95, depth));
+        vRim = pow(max(dot(normalize(leaf - cameraPosition), uSunDir), 0.0), 4.0) * smoothstep(0.6, 1.0, depth);
+        vTint = leafData.z;
+        vUv = uv;
+        vDist = -mv.z;
+        gl_Position = projectionMatrix * mv;
+      }`,
+    fragmentShader: /* glsl */`
+      uniform vec3 uLeafLight, uLeafDark, uLight, uFog;
+      uniform float uFogDensity, uNight;
+      varying vec2 vUv;
+      varying float vShade, vTint, vRim, vDist;
+      float leafShape(vec2 p, vec2 at, float angle, float size) {
+        p -= at;
+        float c = cos(angle), s = sin(angle);
+        p = vec2(p.x * c - p.y * s, p.x * s + p.y * c) / size;
+        return step(p.x * p.x * 4.0 + p.y * p.y, 0.25 - 0.18 * p.y);
+      }
+      void main() {
+        vec2 p = vUv - 0.5;
+        float a = max(leafShape(p, vec2(0.0, 0.1), 0.2, 0.5), max(leafShape(p, vec2(-0.17, -0.1), 1.1, 0.42), leafShape(p, vec2(0.18, -0.08), -1.0, 0.44)));
+        if (a < 0.5) discard;
+        vec3 col = mix(uLeafDark, uLeafLight, vShade) * (0.82 + 0.36 * vTint);
+        col += uLight * vRim * 0.12 * (1.0 - uNight);
+        float fog = 1.0 - exp(-uFogDensity * uFogDensity * vDist * vDist);
+        gl_FragColor = vec4(mix(col, uFog, fog), 1.0);
+        #include <colorspace_fragment>
+      }`
+  }));
+  leaves.frustumCulled = false;
+  scene.add(leaves);
 
   // ---- grass: one blade shape, drawn tens of thousands of times
-  const BLADES = isSmall ? 42000 : 90000;
-  const SEGMENTS = 5;
+  const BLADES = isSmall ? 70000 : 140000;
+  const SEGMENTS = 4;
   const blade = new THREE.InstancedBufferGeometry();
   {
     const verts = [], idx = [];
     for (let i = 0; i <= SEGMENTS; i++) {
       const t = i / SEGMENTS;
-      const w = 0.5 * (1 - t * t * 0.92);
+      const w = 0.5 * (1 - t * t * 0.95);
       verts.push(-w, t, 0, w, t, 0);
     }
     for (let i = 0; i < SEGMENTS; i++) {
@@ -179,34 +310,34 @@ export function startTouchGrass({ canvas, onReady, onTouch }) {
     blade.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
     blade.setIndex(idx);
   }
-  const offsets = new Float32Array(BLADES * 3);
-  const shape = new Float32Array(BLADES * 4); // angle, height, width, tint
   {
+    const offsets = new Float32Array(BLADES * 3);
+    const shape = new Float32Array(BLADES * 4); // angle, height, width, tint
     const rand = mulberry32(42);
-    const halfFov = 0.75;
+    const start = isSmall ? 2.4 : 2.0;
     for (let i = 0; i < BLADES; i++) {
       // place blades in a wedge in front of the camera, denser close up
       const r = rand();
-      const d = 1.7 + 69 * r * r;
-      const a = (rand() * 2 - 1) * (halfFov + 0.25);
+      const d = start + 70 * r * r;
+      const a = (rand() * 2 - 1) * 1.0;
       const x = cameraHome.x + Math.sin(a) * d * 1.15;
       const z = cameraHome.z - Math.cos(a) * d;
       offsets.set([x, height(x, z), z], i * 3);
-      const near = Math.max(0, 1 - d / 18);
-      shape.set([rand() * Math.PI * 2, 0.45 + rand() * 0.45 + near * 0.3, 0.05 + rand() * 0.04, rand()], i * 4);
+      const near = Math.max(0, 1 - d / 16);
+      // thin, mostly upright blades; a little taller and finer close to the camera
+      shape.set([rand() * Math.PI * 2, 0.42 + rand() * 0.42 + near * 0.22, 0.032 + rand() * 0.03 + d * 0.0012, rand()], i * 4);
     }
+    blade.setAttribute('offset', new THREE.InstancedBufferAttribute(offsets, 3));
+    blade.setAttribute('shape', new THREE.InstancedBufferAttribute(shape, 4));
+    blade.instanceCount = BLADES;
   }
-  blade.setAttribute('offset', new THREE.InstancedBufferAttribute(offsets, 3));
-  blade.setAttribute('shape', new THREE.InstancedBufferAttribute(shape, 4));
-  blade.instanceCount = BLADES;
 
   const touchPoints = Array.from({ length: TRAIL }, () => new THREE.Vector4(0, -999, 0, 0));
   const grassUniforms = {
-    uTime: { value: 0 }, uWind: { value: reduceMotion ? 0.4 : 1 },
+    ...shared, uWind: { value: reduceMotion ? 0.4 : 1 },
     uTouch: { value: touchPoints }, uRadius: { value: TOUCH_RADIUS },
-    uBase: { value: new THREE.Color() }, uTip: { value: new THREE.Color() },
-    uLight: { value: new THREE.Color() }, uSunDir: { value: new THREE.Vector3() },
-    uFog: { value: new THREE.Color() }, uFogDensity: { value: 0.012 }, uNight: { value: 0 }
+    uBase: { value: new THREE.Color() }, uTip: { value: new THREE.Color() }, uDry: { value: new THREE.Color() },
+    uCloudShadow: { value: 0 }
   };
   const grass = new THREE.Mesh(blade, new THREE.ShaderMaterial({
     side: THREE.DoubleSide, uniforms: grassUniforms,
@@ -215,8 +346,9 @@ export function startTouchGrass({ canvas, onReady, onTouch }) {
       attribute vec4 shape;
       uniform float uTime, uWind, uRadius;
       uniform vec4 uTouch[${TRAIL}];
-      varying float vH, vTint, vTouched, vDist, vFacing, vBack;
       uniform vec3 uSunDir;
+      varying float vH, vTint, vTouched, vDist, vFacing, vBack, vPatch, vShadow;
+      ${NOISE_GLSL}
       void main() {
         float h = position.y;
         float c = cos(shape.x), s = sin(shape.x);
@@ -227,8 +359,8 @@ export function startTouchGrass({ canvas, onReady, onTouch }) {
         float gust = sin(uTime * 0.9 - offset.x * 0.08 - offset.z * 0.11) * 0.5 + 0.5;
         float flutter = sin(uTime * 3.1 + offset.x * 1.7 + offset.z * 1.3 + shape.w * 6.0);
         float r2 = fract(shape.w * 7.31);
-        vec2 lean = vec2(cos(shape.x * 1.7), sin(shape.x * 1.7)) * (0.08 + 0.22 * r2);
-        vec2 bend = lean + vec2(0.06 + 0.2 * gust + 0.05 * flutter, 0.06 * flutter) * uWind;
+        vec2 lean = vec2(cos(shape.x * 1.7), sin(shape.x * 1.7)) * (0.03 + 0.12 * r2);
+        vec2 bend = lean + vec2(0.04 + 0.16 * gust + 0.04 * flutter, 0.05 * flutter) * uWind;
 
         // the hand: push blades away from recent touch points, fading as they recover
         vec2 push = vec2(0.0);
@@ -236,19 +368,21 @@ export function startTouchGrass({ canvas, onReady, onTouch }) {
         for (int i = 0; i < ${TRAIL}; i++) {
           vec2 dv = offset.xz - uTouch[i].xz;
           float dist = length(dv);
-          float f = (1.0 - smoothstep(0.0, uRadius, dist)) * uTouch[i].w;
+          float radius = uRadius * clamp(length(uTouch[i].xyz - cameraPosition) / 9.0, 0.45, 1.0);
+          float f = (1.0 - smoothstep(0.0, radius, dist)) * uTouch[i].w;
           push += (dv / max(dist, 0.001)) * f * 2.6;
           touched = max(touched, f);
         }
         vec2 total = bend + push;
         float k = h * h;
-        float len = length(total);
         world.xz += total * k * shape.y;
-        world.y -= min(len, 1.6) * k * shape.y * 0.42;
+        world.y -= min(length(total), 1.6) * k * shape.y * 0.42;
 
         vH = h;
         vTint = shape.w;
         vTouched = touched;
+        vPatch = noise(offset.xz * 0.09) * 0.7 + noise(offset.xz * 0.4) * 0.3;
+        vShadow = smoothstep(0.42, 0.62, noise(offset.xz * 0.03 + vec2(uTime * 0.018, uTime * 0.006)));
         vFacing = abs(dot(normalize(vec2(-s, c)), normalize(uSunDir.xz)));
         vBack = pow(max(dot(normalize(world - cameraPosition), uSunDir), 0.0), 3.0);
         vec4 mv = viewMatrix * vec4(world, 1.0);
@@ -256,17 +390,20 @@ export function startTouchGrass({ canvas, onReady, onTouch }) {
         gl_Position = projectionMatrix * mv;
       }`,
     fragmentShader: /* glsl */`
-      uniform vec3 uBase, uTip, uLight, uFog;
-      uniform float uFogDensity, uNight, uTime;
-      varying float vH, vTint, vTouched, vDist, vFacing, vBack;
+      uniform vec3 uBase, uTip, uDry, uLight, uFog;
+      uniform float uFogDensity, uNight, uCloudShadow;
+      varying float vH, vTint, vTouched, vDist, vFacing, vBack, vPatch, vShadow;
       void main() {
-        vec3 tip = mix(uTip, uTip * vec3(1.18, 1.08, 0.7), fract(vTint * 13.7)); // some blades drier than others
-        vec3 col = mix(uBase, tip, smoothstep(0.0, 1.0, vH));
-        col *= 0.72 + 0.5 * vTint;
-        col *= mix(0.25, 1.0, smoothstep(0.0, 0.75, vH));          // shadowed near the roots
-        col += uLight * (0.08 * vFacing + 0.35 * vBack * (1.0 - 0.8 * uNight)) * vH * vH;  // light catching and shining through the blades
-        col *= 1.0 - 0.35 * vTouched * (1.0 - uNight);              // pressed grass sits in its own shade
-        col += vec3(0.55, 0.95, 0.85) * vTouched * vH * uNight * 0.6; // a glow where you touch at night
+        // patches of drier, yellower grass, and single blades that differ from their neighbours
+        float dry = smoothstep(0.6, 0.9, vPatch) * 0.6 + step(0.94, fract(vTint * 13.7)) * 0.45;
+        vec3 tip = mix(uTip, uDry, clamp(dry, 0.0, 1.0));
+        vec3 col = mix(uBase, tip, pow(vH, 1.4));
+        col *= 0.74 + 0.46 * vTint;
+        col *= mix(0.22, 1.0, smoothstep(0.0, 0.7, vH));            // shadowed near the roots
+        col += uLight * (0.08 * vFacing + 0.2 * vBack * (1.0 - 0.8 * uNight)) * vH * vH; // sunlight catching and shining through
+        col *= 1.0 - uCloudShadow * 0.45 * vShadow;                  // cloud shadows drifting over the field
+        col *= 1.0 - 0.25 * vTouched * (1.0 - uNight);              // pressed grass sits in its own shade
+        col += vec3(0.55, 0.95, 0.85) * vTouched * vH * uNight * 0.35; // a glow where you touch at night
         float fog = 1.0 - exp(-uFogDensity * uFogDensity * vDist * vDist);
         gl_FragColor = vec4(mix(col, uFog, fog), 1.0);
         #include <colorspace_fragment>
@@ -275,94 +412,221 @@ export function startTouchGrass({ canvas, onReady, onTouch }) {
   grass.frustumCulled = false;
   scene.add(grass);
 
-  // ---- wildflowers and fireflies as soft points
-  const pointMaterial = (extra) => new THREE.ShaderMaterial({
-    transparent: true, depthWrite: false, ...extra
-  });
-  const FLOWERS = isSmall ? 500 : 900;
+  // ---- flowers: a yellow meadow across the hill, and a few bright ones close by
   const flowerGeo = new THREE.BufferGeometry();
   {
     const rand = mulberry32(9);
-    const pos = new Float32Array(FLOWERS * 3), col = new Float32Array(FLOWERS * 3);
-    const palette = [[0.86, 0.22, 0.2], [0.93, 0.36, 0.3], [0.42, 0.45, 0.85], [0.95, 0.78, 0.3], [0.96, 0.95, 0.9]];
-    for (let i = 0; i < FLOWERS; i++) {
-      const r = rand(); const d = 1.5 + 55 * r * r; const a = (rand() * 2 - 1) * 1.0;
-      const x = Math.sin(a) * d * 1.15, z = cameraHome.z - Math.cos(a) * d;
-      pos.set([x, height(x, z) + 0.55 + rand() * 0.4, z], i * 3);
-      col.set(palette[Math.floor(rand() * palette.length)], i * 3);
+    const near = isSmall ? 260 : 420, meadow = isSmall ? 1500 : 2600;
+    const n = near + meadow;
+    const pos = new Float32Array(n * 3), col = new Float32Array(n * 3), data = new Float32Array(n * 2);
+    const bright = [[0.92, 0.28, 0.26], [0.95, 0.45, 0.55], [0.36, 0.42, 0.9], [0.97, 0.6, 0.22], [0.97, 0.96, 0.92], [0.98, 0.84, 0.25]];
+    for (let i = 0; i < n; i++) {
+      let x, z, c, size;
+      if (i < near) {
+        const r = rand(), d = 2.6 + 26 * r, a = (rand() * 2 - 1) * 0.95;
+        x = Math.sin(a) * d * 1.15; z = cameraHome.z - Math.cos(a) * d;
+        c = bright[Math.floor(rand() * bright.length)]; size = 0.13 + rand() * 0.06;
+      } else {
+        // a drift of small yellow flowers along the slope, thicker in its middle
+        const u = rand(), v = (rand() + rand() + rand()) / 3;
+        x = (u * 2 - 1) * 26; z = -11 - v * 10 + Math.sin(x * 0.2) * 1.5;
+        const warm = rand();
+        c = warm < 0.8 ? [0.98, 0.8 + rand() * 0.1, 0.2] : [0.98, 0.55, 0.2];
+        size = 0.1 + rand() * 0.05;
+      }
+      pos.set([x, height(x, z) + 0.35 + rand() * 0.3, z], i * 3);
+      col.set(c, i * 3);
+      data.set([size, rand() * 6.28], i * 2);
     }
     flowerGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
     flowerGeo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    flowerGeo.setAttribute('flower', new THREE.BufferAttribute(data, 2));
   }
-  const flowerUniforms = { uTime: grassUniforms.uTime, uScale: { value: 1 }, uDim: { value: 1 }, uFog: grassUniforms.uFog, uFogDensity: grassUniforms.uFogDensity };
-  const flowers = new THREE.Points(flowerGeo, pointMaterial({
+  const flowerUniforms = { ...shared, uDim: { value: 1 } };
+  const flowers = new THREE.Points(flowerGeo, new THREE.ShaderMaterial({
     uniforms: flowerUniforms,
     vertexShader: /* glsl */`
       attribute vec3 color;
-      uniform float uTime, uScale;
-      varying vec3 vColor; varying float vDist;
+      attribute vec2 flower; // size, rotation
+      uniform float uTime, uProj;
+      varying vec3 vColor; varying float vDist, vRot;
       void main() {
         vec3 p = position;
-        p.x += sin(uTime * 1.2 + p.z * 0.7) * 0.05;
+        p.x += sin(uTime * 1.2 + p.z * 0.7 + flower.y) * 0.04;
         vec4 mv = modelViewMatrix * vec4(p, 1.0);
         vDist = -mv.z;
         vColor = color;
-        gl_PointSize = uScale * 20.0 / vDist;
+        vRot = flower.y;
+        gl_PointSize = min(flower.x * uProj / vDist, 60.0 * uProj / 900.0);
         gl_Position = projectionMatrix * mv;
       }`,
     fragmentShader: /* glsl */`
       uniform vec3 uFog; uniform float uFogDensity, uDim;
-      varying vec3 vColor; varying float vDist;
+      varying vec3 vColor; varying float vDist, vRot;
       void main() {
-        float r = length(gl_PointCoord - 0.5);
-        if (r > 0.5) discard;
+        vec2 p = (gl_PointCoord - 0.5) * 2.0;
+        float r = length(p);
+        float a = atan(p.y, p.x) + vRot;
+        float petals = 0.62 + 0.38 * abs(cos(2.5 * a)); // five petals
+        if (r > petals) discard;
+        vec3 centre = mix(vec3(1.0, 0.82, 0.25), vec3(0.75, 0.4, 0.1), step(0.75, vColor.g) * step(vColor.b, 0.35));
+        vec3 col = mix(vColor * (0.8 + 0.25 * r), centre, smoothstep(0.3, 0.2, r)) * uDim;
         float fog = 1.0 - exp(-uFogDensity * uFogDensity * vDist * vDist);
-        gl_FragColor = vec4(mix(vColor * uDim, uFog, fog), smoothstep(0.5, 0.3, r));
+        gl_FragColor = vec4(mix(col, uFog, fog), 1.0);
         #include <colorspace_fragment>
       }`
   }));
+  flowers.frustumCulled = false;
   scene.add(flowers);
 
+  // ---- touching the grass
+  const raycaster = new THREE.Raycaster();
+  const pointer = new THREE.Vector2(0, 0);
+  const pointerScreen = new THREE.Vector2(0, 0);
+  let pointerOver = false;
+  const lastTrail = new THREE.Vector3(0, -999, 0);
+  let trailIndex = 0;
+  const trailBorn = new Float32Array(TRAIL).fill(-999);
+  const hand = new THREE.Vector4(0, -999, 0, 0);
+  let handSeen = -999; // when the hand last touched the grass
+
+  // Where the pointer meets the top of the grass, not the ground hidden beneath it,
+  // so the blades that part are the ones under your finger.
+  const CANOPY = 0.55;
+  const grassUnder = (ray) => {
+    const p = new THREE.Vector3();
+    for (let t = 0.5; t < 140; t += 0.05 + t * 0.01) {
+      ray.at(t, p);
+      if (p.y - height(p.x, p.z) < CANOPY) return p;
+    }
+    return null;
+  };
+
+  // ---- falling leaves, shaken loose when you tap the tree
+  const FALLING = 60;
+  const fallPos = new Float32Array(FALLING * 3).fill(-999);
+  const fallData = new Float32Array(FALLING * 2); // life, spin
+  const fallVel = new Float32Array(FALLING * 3);
+  const fallGeo = new THREE.BufferGeometry();
+  fallGeo.setAttribute('position', new THREE.BufferAttribute(fallPos, 3));
+  fallGeo.setAttribute('fall', new THREE.BufferAttribute(fallData, 2));
+  const falling = new THREE.Points(fallGeo, new THREE.ShaderMaterial({
+    uniforms: { ...shared, uLeafLight: leafUniforms.uLeafLight }, transparent: true, depthWrite: false,
+    vertexShader: /* glsl */`
+      attribute vec2 fall;
+      uniform float uProj;
+      varying vec2 vFall;
+      void main() {
+        vFall = fall;
+        vec4 mv = modelViewMatrix * vec4(position, 1.0);
+        gl_PointSize = 0.32 * uProj / -mv.z;
+        gl_Position = projectionMatrix * mv;
+      }`,
+    fragmentShader: /* glsl */`
+      uniform vec3 uLeafLight;
+      varying vec2 vFall;
+      void main() {
+        vec2 p = gl_PointCoord - 0.5;
+        float c = cos(vFall.y), s = sin(vFall.y);
+        p = vec2(p.x * c - p.y * s, p.x * s + p.y * c);
+        if (p.x * p.x * 9.0 + p.y * p.y * 2.2 > 0.25) discard;
+        gl_FragColor = vec4(uLeafLight * 1.1, min(vFall.x * 3.0, 1.0));
+        #include <colorspace_fragment>
+      }`
+  }));
+  falling.frustumCulled = false;
+  scene.add(falling);
+  let nextFall = 0;
+  const shakeTree = () => {
+    leafUniforms.uShake.value = 1;
+    const rand = Math.random;
+    for (let k = 0; k < 14; k++) {
+      const i = nextFall; nextFall = (nextFall + 1) % FALLING;
+      const v = new THREE.Vector3(rand() * 2 - 1, rand() * 0.8 - 0.6, rand() * 2 - 1).multiplyScalar(3);
+      fallPos.set([crownCenter.x + v.x, crownCenter.y + v.y, crownCenter.z + v.z + 1.5], i * 3);
+      fallVel.set([(rand() - 0.5) * 0.6, -0.5 - rand() * 0.5, 0.3 + rand() * 0.5], i * 3);
+      fallData.set([1, rand() * 6.28], i * 2);
+    }
+  };
+
+  // ---- butterflies by day
+  const BUTTERFLIES = isSmall ? 5 : 7;
+  const wingTexture = (fill, edge, spots) => {
+    const c = document.createElement('canvas');
+    c.width = c.height = 64;
+    const g = c.getContext('2d');
+    const wing = () => {
+      g.beginPath();
+      g.ellipse(30, 22, 26, 18, -0.35, 0, Math.PI * 2);
+      g.ellipse(24, 46, 17, 13, 0.4, 0, Math.PI * 2);
+    };
+    g.fillStyle = edge; wing(); g.fill();
+    g.save(); g.translate(5, 4); g.scale(0.84, 0.84); g.fillStyle = fill; wing(); g.fill(); g.restore();
+    g.fillStyle = spots;
+    for (const [x, y, r] of [[48, 14, 3], [44, 26, 2.4], [30, 50, 2.6]]) { g.beginPath(); g.arc(x, y, r, 0, 7); g.fill(); }
+    const t = new THREE.CanvasTexture(c);
+    t.colorSpace = THREE.SRGBColorSpace;
+    return t;
+  };
+  const wingLooks = [['#f08a24', '#2a1a10', '#fff4e0'], ['#f6f1e4', '#8a8a7a', '#f6c84a'], ['#5aa0f0', '#1b2a4a', '#e8f2ff'], ['#f3d23c', '#3a2a10', '#fff8d8']]
+    .map((look) => new THREE.MeshBasicMaterial({ map: wingTexture(...look), side: THREE.DoubleSide, alphaTest: 0.5, transparent: true }));
+  const wingGeo = new THREE.PlaneGeometry(0.2, 0.2);
+  wingGeo.rotateX(-Math.PI / 2);
+  wingGeo.translate(0.1, 0, 0); // hinge along the body
+  const butterflies = Array.from({ length: BUTTERFLIES }, (_, i) => {
+    const group = new THREE.Group();
+    const material = wingLooks[i % wingLooks.length];
+    const right = new THREE.Mesh(wingGeo, material);
+    const left = new THREE.Mesh(wingGeo, material);
+    left.scale.x = -1;
+    group.add(right, left);
+    scene.add(group);
+    const x = (Math.random() - 0.5) * 10, z = 4 + Math.random() * 6;
+    return {
+      group, right, left, phase: Math.random() * 10,
+      pos: new THREE.Vector3(x, height(x, z) + 1 + Math.random(), z),
+      vel: new THREE.Vector3(), target: new THREE.Vector3(), retarget: 0,
+      orbit: new THREE.Vector3(Math.cos(i * 2.4), 0.5 + (i % 3) * 0.25, Math.sin(i * 2.4)).multiplyScalar(0.8)
+    };
+  });
+
+  // ---- fireflies by night, drawn toward your hand
   const FIREFLIES = isSmall ? 60 : 110;
   const flyGeo = new THREE.BufferGeometry();
+  const flyHome = new Float32Array(FIREFLIES * 3), flySeed = new Float32Array(FIREFLIES);
+  const flyPos = new Float32Array(FIREFLIES * 3), flyPull = new Float32Array(FIREFLIES * 3);
   {
     const rand = mulberry32(3);
-    const pos = new Float32Array(FIREFLIES * 3), seed = new Float32Array(FIREFLIES);
     for (let i = 0; i < FIREFLIES; i++) {
       const d = 3 + rand() * 30, a = (rand() * 2 - 1) * 0.9;
       const x = Math.sin(a) * d * 1.2, z = cameraHome.z - Math.cos(a) * d;
-      pos.set([x, height(x, z) + 0.6 + rand() * 2.2, z], i * 3);
-      seed[i] = rand() * 100;
+      flyHome.set([x, height(x, z) + 0.6 + rand() * 2.2, z], i * 3);
+      flySeed[i] = rand() * 100;
     }
-    flyGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-    flyGeo.setAttribute('seed', new THREE.BufferAttribute(seed, 1));
+    flyGeo.setAttribute('position', new THREE.BufferAttribute(flyPos, 3));
+    flyGeo.setAttribute('seed', new THREE.BufferAttribute(flySeed, 1));
   }
-  const flyUniforms = { uTime: grassUniforms.uTime, uNight: grassUniforms.uNight, uScale: flowerUniforms.uScale };
-  const fireflies = new THREE.Points(flyGeo, pointMaterial({
-    blending: THREE.AdditiveBlending, uniforms: flyUniforms,
+  const fireflies = new THREE.Points(flyGeo, new THREE.ShaderMaterial({
+    blending: THREE.AdditiveBlending, transparent: true, depthWrite: false, uniforms: shared,
     vertexShader: /* glsl */`
       attribute float seed;
-      uniform float uTime, uScale;
+      uniform float uTime, uProj;
       varying float vBlink;
       void main() {
-        vec3 p = position;
-        p.x += sin(uTime * 0.31 + seed) * 1.1;
-        p.y += sin(uTime * 0.53 + seed * 1.7) * 0.45;
-        p.z += cos(uTime * 0.27 + seed * 0.6) * 1.1;
         vBlink = smoothstep(0.1, 0.9, sin(uTime * 1.4 + seed * 3.1) * 0.5 + 0.5);
-        vec4 mv = modelViewMatrix * vec4(p, 1.0);
-        gl_PointSize = uScale * 60.0 / -mv.z;
+        vec4 mv = modelViewMatrix * vec4(position, 1.0);
+        gl_PointSize = min(0.28 * uProj / -mv.z, 16.0 * uProj / 900.0);
         gl_Position = projectionMatrix * mv;
       }`,
     fragmentShader: /* glsl */`
       uniform float uNight;
       varying float vBlink;
       void main() {
-        float r = length(gl_PointCoord - 0.5);
-        float glow = smoothstep(0.5, 0.0, r);
-        gl_FragColor = vec4(vec3(0.85, 1.0, 0.45) * glow * glow * vBlink * uNight, 1.0);
+        float glow = smoothstep(0.5, 0.0, length(gl_PointCoord - 0.5));
+        gl_FragColor = vec4(vec3(0.85, 1.0, 0.45) * glow * glow * glow * 1.4 * vBlink * uNight, 1.0);
       }`
   }));
+  fireflies.frustumCulled = false;
   scene.add(fireflies);
 
   // sparkles that rise from the grass where you touch it at night
@@ -373,16 +637,16 @@ export function startTouchGrass({ canvas, onReady, onTouch }) {
   const sparkGeo = new THREE.BufferGeometry();
   sparkGeo.setAttribute('position', new THREE.BufferAttribute(sparkPos, 3));
   sparkGeo.setAttribute('life', new THREE.BufferAttribute(sparkLife, 1));
-  const sparks = new THREE.Points(sparkGeo, pointMaterial({
-    blending: THREE.AdditiveBlending, uniforms: { uNight: grassUniforms.uNight, uScale: flowerUniforms.uScale },
+  const sparks = new THREE.Points(sparkGeo, new THREE.ShaderMaterial({
+    blending: THREE.AdditiveBlending, transparent: true, depthWrite: false, uniforms: shared,
     vertexShader: /* glsl */`
       attribute float life;
-      uniform float uScale;
+      uniform float uProj;
       varying float vLife;
       void main() {
         vLife = life;
         vec4 mv = modelViewMatrix * vec4(position, 1.0);
-        gl_PointSize = uScale * 22.0 / -mv.z;
+        gl_PointSize = min(0.12 * uProj / -mv.z, 9.0 * uProj / 900.0);
         gl_Position = projectionMatrix * mv;
       }`,
     fragmentShader: /* glsl */`
@@ -405,63 +669,50 @@ export function startTouchGrass({ canvas, onReady, onTouch }) {
     }
   };
 
-  // ---- touching the grass
-  const raycaster = new THREE.Raycaster();
-  const pointer = new THREE.Vector2(0, 0);
-  const pointerScreen = new THREE.Vector2(0, 0);
-  let pointerOver = false;
-  let lastTrail = new THREE.Vector3(0, -999, 0);
-  let trailIndex = 0;
-  const trailBorn = new Float32Array(TRAIL).fill(-999);
-  const hand = new THREE.Vector4(0, -999, 0, 0);
-
-  // Where the pointer meets the top of the grass, not the ground hidden beneath it,
-  // so the blades that part are the ones under your finger.
-  const CANOPY = 0.6;
-  const grassUnder = (ray) => {
-    const p = new THREE.Vector3();
-    for (let t = 0.5; t < 140; t += 0.05 + t * 0.01) {
-      ray.at(t, p);
-      if (p.y - height(p.x, p.z) < CANOPY) return p;
-    }
-    return null;
-  };
-
-  const updatePointer = (event) => {
+  // ---- pointer
+  const aim = (event) => {
     const rect = canvas.getBoundingClientRect();
     pointer.set(((event.clientX - rect.left) / rect.width) * 2 - 1, -((event.clientY - rect.top) / rect.height) * 2 + 1);
     pointerScreen.copy(pointer);
-    pointerOver = true;
     raycaster.setFromCamera(pointer, camera);
+  };
+  const updatePointer = (event) => {
+    aim(event);
+    pointerOver = true;
     const point = grassUnder(raycaster.ray);
     if (!point) { hand.w = 0; return; }
     hand.set(point.x, point.y, point.z, 1);
+    handSeen = timer.getElapsed();
+    onTouch?.();
     if (point.distanceTo(lastTrail) > 0.45) {
       lastTrail.copy(point);
       touchPoints[trailIndex].set(point.x, point.y, point.z, 1);
       trailBorn[trailIndex] = timer.getElapsed();
       trailIndex = (trailIndex + 1) % TRAIL;
       spawnSparks(point, 3);
-      onTouch?.();
     }
   };
   canvas.addEventListener('pointermove', updatePointer);
-  canvas.addEventListener('pointerdown', (e) => { canvas.setPointerCapture?.(e.pointerId); updatePointer(e); });
+  canvas.addEventListener('pointerdown', (e) => {
+    aim(e);
+    if (raycaster.ray.intersectsSphere(crownSphere)) { shakeTree(); return; }
+    canvas.setPointerCapture?.(e.pointerId);
+    updatePointer(e);
+  });
   canvas.addEventListener('pointerleave', () => { pointerOver = false; hand.w = 0; });
   canvas.addEventListener('pointerup', (e) => { if (e.pointerType !== 'mouse') { pointerOver = false; hand.w = 0; } });
 
   // ---- time of day
   let from = null, to = 'morning', blendStart = 0;
   const BLEND_SECONDS = 1.6;
+  const cloneMode = (m) => Object.fromEntries(Object.entries(m).map(([k, v]) => [k, v?.clone ? v.clone() : v]));
   const setMode = (name, instant = false) => {
     if (!modes[name]) return;
-    from = instant ? null : snapshot();
+    from = instant ? null : cloneMode(state);
     to = name;
     blendStart = timer.getElapsed();
     if (instant) Object.assign(state, cloneMode(modes[name]));
   };
-  const snapshot = () => cloneMode(state);
-  const cloneMode = (m) => Object.fromEntries(Object.entries(m).map(([k, v]) => [k, v?.clone ? v.clone() : v]));
   const blendModes = (t) => {
     const target = modes[to];
     for (const key of Object.keys(target)) {
@@ -474,25 +725,28 @@ export function startTouchGrass({ canvas, onReady, onTouch }) {
   const applyState = () => {
     skyUniforms.uTop.value.copy(state.skyTop);
     skyUniforms.uHorizon.value.copy(state.skyHorizon);
-    skyUniforms.uSunDir.value.copy(state.sunDir);
     skyUniforms.uSunColor.value.copy(state.sunColor);
     skyUniforms.uSunSize.value = state.sunSize;
     skyUniforms.uClouds.value = state.clouds;
     skyUniforms.uStars.value = state.stars;
-    skyUniforms.uNight.value = state.night;
+    shared.uSunDir.value.copy(state.sunDir);
+    shared.uLight.value.copy(state.light);
+    shared.uFog.value.copy(state.fog);
+    shared.uFogDensity.value = state.fogDensity;
+    shared.uNight.value = state.night;
     grassUniforms.uBase.value.copy(state.grassBase);
     grassUniforms.uTip.value.copy(state.grassTip);
-    grassUniforms.uLight.value.copy(state.light);
-    grassUniforms.uSunDir.value.copy(state.sunDir);
-    grassUniforms.uFog.value.copy(state.fog);
-    grassUniforms.uFogDensity.value = state.fogDensity;
-    grassUniforms.uNight.value = state.night;
-    flowerUniforms.uDim.value = 1 - 0.65 * state.night;
+    grassUniforms.uDry.value.copy(state.grassDry);
+    grassUniforms.uCloudShadow.value = state.cloudShadow;
+    leafUniforms.uLeafLight.value.copy(state.leafLight);
+    leafUniforms.uLeafDark.value.copy(state.leafDark);
+    flowerUniforms.uDim.value = 1 - 0.7 * state.night;
     hemi.color.copy(state.hemiSky); hemi.groundColor.copy(state.hemiGround); hemi.intensity = state.hemiIntensity;
     sun.color.copy(state.light); sun.intensity = state.lightIntensity;
     sun.position.copy(state.sunDir).multiplyScalar(50);
     groundMat.color.copy(state.ground);
-    treeMat.color.copy(state.tree);
+    barkMat.color.copy(state.bark);
+    ridgeMat.color.copy(state.ridge).lerp(state.fog, 0.45);
     scene.fog.color.copy(state.fog);
     scene.fog.density = state.fogDensity;
   };
@@ -505,22 +759,22 @@ export function startTouchGrass({ canvas, onReady, onTouch }) {
     // keep the tree in view on tall phone screens
     camera.fov = camera.aspect < 0.8 ? 64 : 50;
     camera.updateProjectionMatrix();
-    flowerUniforms.uScale.value = h / 900 * renderer.getPixelRatio();
+    shared.uProj.value = (h * renderer.getPixelRatio()) / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)));
   };
   new ResizeObserver(resize).observe(canvas);
   resize();
 
   // ---- loop
-  const timer = new THREE.Timer();
   const sway = new THREE.Vector2();
+  const restingSway = new THREE.Vector2();
+  const steer = new THREE.Vector3();
   let running = true;
   const frame = () => {
     if (!running) return;
     timer.update();
     const t = timer.getElapsed();
     const dt = Math.min(timer.getDelta(), 0.05);
-    grassUniforms.uTime.value = t;
-    skyUniforms.uTime.value = t;
+    shared.uTime.value = t;
 
     if (from) {
       const k = Math.min(1, (t - blendStart) / BLEND_SECONDS);
@@ -528,11 +782,12 @@ export function startTouchGrass({ canvas, onReady, onTouch }) {
       if (k >= 1) from = null;
     }
     applyState();
+    const handActive = t - handSeen < 1.5;
+    const day = 1 - state.night;
 
     // trail fades so the grass slowly stands back up
     for (let i = 0; i < TRAIL; i++) {
-      const age = t - trailBorn[i];
-      touchPoints[i].w = Math.max(0, 1 - age / RECOVER_SECONDS) ** 1.5;
+      touchPoints[i].w = Math.max(0, 1 - (t - trailBorn[i]) / RECOVER_SECONDS) ** 1.5;
     }
     // the slot under the hand stays fully pressed while it rests there
     if (hand.w > 0 && pointerOver) {
@@ -540,6 +795,64 @@ export function startTouchGrass({ canvas, onReady, onTouch }) {
       touchPoints[slot].set(hand.x, hand.y, hand.z, 1);
       trailBorn[slot] = t;
     }
+
+    // tree settles after a shake; loose leaves drift down
+    leafUniforms.uShake.value = Math.max(0, leafUniforms.uShake.value - dt * 1.2);
+    for (let i = 0; i < FALLING; i++) {
+      if (fallData[i * 2] <= 0) continue;
+      const x = i * 3;
+      fallPos[x] += (fallVel[x] + Math.sin(t * 2.2 + i) * 0.5) * dt;
+      fallPos[x + 1] += fallVel[x + 1] * dt;
+      fallPos[x + 2] += fallVel[x + 2] * dt;
+      fallData[i * 2 + 1] += dt * 2.5;
+      if (fallPos[x + 1] < height(fallPos[x], fallPos[x + 2]) + 0.3) fallData[i * 2] -= dt * 0.8;
+    }
+    fallGeo.attributes.position.needsUpdate = true;
+    fallGeo.attributes.fall.needsUpdate = true;
+
+    // butterflies wander, and come to the hand when it is in the grass
+    for (const b of butterflies) {
+      b.group.visible = day > 0.05;
+      if (!b.group.visible) continue;
+      if (handActive) {
+        b.target.set(hand.x, hand.y, hand.z).add(b.orbit).add(new THREE.Vector3(Math.sin(t * 1.3 + b.phase) * 0.4, 0, Math.cos(t * 1.1 + b.phase) * 0.4));
+      } else if (t > b.retarget) {
+        const x = (Math.random() - 0.5) * 12, z = 2 + Math.random() * 9;
+        b.target.set(x, height(x, z) + 0.8 + Math.random() * 1.2, z);
+        b.retarget = t + 2 + Math.random() * 3;
+      }
+      steer.copy(b.target).sub(b.pos);
+      const dist = steer.length();
+      b.vel.addScaledVector(steer.normalize(), Math.min(dist, 2) * 2.2 * dt);
+      b.vel.y += Math.sin(t * 6 + b.phase) * 1.6 * dt; // the bobbing, fluttery path
+      b.vel.multiplyScalar(1 - 1.6 * dt);
+      if (b.vel.length() > 1.6) b.vel.setLength(1.6);
+      b.pos.addScaledVector(b.vel, dt);
+      b.pos.y = Math.max(b.pos.y, height(b.pos.x, b.pos.z) + 0.45);
+      b.group.position.copy(b.pos);
+      b.group.rotation.y = Math.atan2(b.vel.x, b.vel.z);
+      const flap = 0.2 + Math.abs(Math.sin(t * 14 + b.phase)) * 1.1;
+      b.right.rotation.z = flap; b.left.rotation.z = -flap;
+      b.group.scale.setScalar(day);
+    }
+
+    // fireflies drift around their homes, gathering at the hand at night
+    for (let i = 0; i < FIREFLIES; i++) {
+      const x = i * 3, s = flySeed[i];
+      const hx = flyHome[x] + Math.sin(t * 0.31 + s) * 1.1;
+      const hy = flyHome[x + 1] + Math.sin(t * 0.53 + s * 1.7) * 0.45;
+      const hz = flyHome[x + 2] + Math.cos(t * 0.27 + s * 0.6) * 1.1;
+      const near = handActive && state.night > 0.5 && i % 3 === 0;
+      const tx = near ? hand.x + Math.sin(t * 0.9 + s) * 1.2 - hx : 0;
+      const ty = near ? hand.y + 0.6 + Math.sin(t * 1.3 + s) * 0.5 - hy : 0;
+      const tz = near ? hand.z + Math.cos(t * 0.8 + s) * 1.2 - hz : 0;
+      const ease = Math.min(1, dt * (near ? 1.2 : 0.4));
+      flyPull[x] += (tx - flyPull[x]) * ease;
+      flyPull[x + 1] += (ty - flyPull[x + 1]) * ease;
+      flyPull[x + 2] += (tz - flyPull[x + 2]) * ease;
+      flyPos[x] = hx + flyPull[x]; flyPos[x + 1] = hy + flyPull[x + 1]; flyPos[x + 2] = hz + flyPull[x + 2];
+    }
+    flyGeo.attributes.position.needsUpdate = true;
 
     for (let i = 0; i < SPARKS; i++) {
       if (sparkLife[i] <= 0) continue;
@@ -552,7 +865,7 @@ export function startTouchGrass({ canvas, onReady, onTouch }) {
     sparkGeo.attributes.life.needsUpdate = true;
 
     // a little parallax toward the pointer
-    if (!reduceMotion) sway.lerp(pointerOver ? pointerScreen : new THREE.Vector2(), 0.03);
+    if (!reduceMotion) sway.lerp(pointerOver ? pointerScreen : restingSway, 0.03);
     camera.position.set(cameraHome.x + sway.x * 0.6, cameraHome.y + sway.y * 0.2, cameraHome.z);
     camera.lookAt(lookTarget);
 
@@ -566,7 +879,7 @@ export function startTouchGrass({ canvas, onReady, onTouch }) {
 
   setMode('morning', true);
   applyState();
-  requestAnimationFrame(() => { frame(); onReady?.(); });
+  requestAnimationFrame(frame);
 
   return { setMode };
 }

@@ -70,9 +70,8 @@ const base = import.meta.env.BASE_URL;
     font: 500 .84rem/1 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     color: rgba(255,255,255,.95); background: rgba(0,0,0,.22);
     backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
-    transition: opacity .8s; pointer-events: none;
+    font-variant-numeric: tabular-nums; pointer-events: none;
   }
-  .grass-hint.is-gone { opacity: 0; }
   .grass-fallback {
     position: absolute; inset: auto 16px 40%; margin: 0; text-align: center;
     font: 500 1rem/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #234;
@@ -97,14 +96,30 @@ const base = import.meta.env.BASE_URL;
   const hour = new Date().getHours();
   const initial = hour >= 5 && hour < 15 ? 'morning' : hour >= 15 && hour < 19 ? 'golden' : 'night';
 
-  let hidden = false;
+  // A running count of how long you have actually been touching grass.
+  let touchedMs = 0, lastTouch = -1, lastTick = performance.now();
+  const clock = (ms) => {
+    const sec = Math.floor(ms / 1000);
+    return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
+  };
+  const caption = (ms) => {
+    const sec = ms / 1000;
+    const note = sec >= 300 ? ' · certified grass toucher'
+      : sec >= 60 ? ' · look at you, outside'
+      : sec >= 15 && sec < 35 ? ' · now tap the tree' : '';
+    return `Touched grass for ${clock(ms)}${note}`;
+  };
+  const tick = (now) => {
+    if (now - lastTouch < 450) touchedMs += Math.min(now - lastTick, 100);
+    lastTick = now;
+    if (lastTouch > 0) hint.textContent = caption(touchedMs);
+    requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+
   const grass = startTouchGrass({
     canvas,
-    onTouch: () => {
-      if (hidden) return;
-      hidden = true;
-      setTimeout(() => hint.classList.add('is-gone'), 1200);
-    }
+    onTouch: () => { lastTouch = performance.now(); }
   });
 
   const select = (mode, instant = false) => {
