@@ -4,8 +4,6 @@ export const pages = [
       {title:'Pumply',desc:'Crowdsourced fuel prices for Ghana: find stations near you and what they charge right now.',href:'projects/pumply'},
       {title:'Forecast',desc:'A play-credit prediction market experiment around African events, starting with the NSMQ.',href:'projects/forecast'},
       {title:'DwaPage',desc:'Your shop in one link: small businesses in Ghana get an order or booking page with Mobile Money checkout, and a Telegram ping for every paid order.',href:'https://momo-kit.codeclif.workers.dev',external:true},
-      {title:'Fanhub',desc:'A Mobile-Money-first way for African creators to earn from fans: monthly passes, paid posts and tips, paid out straight to MoMo. Working name.'},
-      {title:'ScamCheck GH',desc:'A WhatsApp bot that tells you whether a message is likely a MoMo scam. Forward it a suspicious SMS or a screenshot. It never calls anything safe.'},
       {title:'ReadyOps',desc:'Business readiness for Ghana: what support a business may qualify for, what it needs to do next, and the evidence to prove it.'},
       {title:'Lab Passport',desc:'A prototype for comparing diagnostic labs in Ghana by price, distance and turnaround time, booking a slot, and keeping your results in one place.'}
     ]},
@@ -18,9 +16,6 @@ export const pages = [
     {title:'Studio and client work',items:[
       {title:'SAUTiQ',desc:'My studio for websites and social media for Ghanaian brands, with concept demos like an eyewear shop where every pair of glasses opens in 3D.',href:'https://codeclif.github.io/sautiQ/',external:true},
       {title:'Luluju Foods',desc:'The weekly lunch menu site for Luluju Foods Enterprise, where each day\'s share preview shows that day\'s meal.',href:'https://luluju.food',external:true}
-    ]},
-    {title:'Early ideas',items:[
-      {title:'BestBundle GH',desc:'Compare MTN, AirtelTigo and Telecel data bundles and find the cheapest one.'}
     ]}
   ]},
   {slug:'research',title:'Research',intro:'Questions I am exploring, without pretending every answer is finished.',items:[{date:'2026 Aug 02',title:'Why prediction markets fascinate me',href:'posts/why-prediction-markets-fascinate-me'},{date:'2026 May 31',title:'What crowdsourcing gets right and wrong',href:'posts/what-crowdsourcing-gets-right-and-wrong'}]},
