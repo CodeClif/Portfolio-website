@@ -9,12 +9,10 @@ export const pages = [
     ]},
     {title:'Games and toys',items:[
       {title:'Dame',desc:'Ghanaian draughts drawn in a school notebook. Forest animals take on the market-day crew; play the computer, a friend, or someone online.',href:'https://codeclif.github.io/dame/',external:true},
-      {title:'Pool',desc:'Online 8-ball pool for the phone browser, with one physics engine shared by the game and the server so every shot plays out the same.',href:'https://pool-game.codeclif.workers.dev',external:true},
       {title:'Nsem Cards',desc:'Pick an Akan proverb and an Adinkra symbol and make a card the size of a WhatsApp status, as a picture or a 6-second video.',href:'https://codeclif.github.io/nsem-cards/',external:true},
       {title:'Touch grass',desc:'A hill of grass you can run your hand through. Find the four-leaf clover, earn a cutlass, make it rain.',href:'touch-grass'}
     ]},
-    {title:'Studio and client work',items:[
-      {title:'SAUTiQ',desc:'My studio for websites and social media for Ghanaian brands, with concept demos like an eyewear shop where every pair of glasses opens in 3D.',href:'https://codeclif.github.io/sautiQ/',external:true},
+    {title:'Client work',items:[
       {title:'Luluju Foods',desc:'The weekly lunch menu site for Luluju Foods Enterprise, where each day\'s share preview shows that day\'s meal.',href:'https://luluju.food',external:true}
     ]}
   ]},
