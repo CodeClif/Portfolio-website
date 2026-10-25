@@ -453,3 +453,6 @@
 .project-group h2{font-size:.82rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0 0 16px}
 .simple-list .item-title{font-size:1.25rem;font-weight:650}
 .simple-list li p{margin:6px 0 0}
+
+/* The tagline can be pulled apart like a string (src/scripts/text-string.js). */
+.hero-tagline{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}

@@ -127,9 +127,14 @@ const nav = [
       const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
       if (tagline && cursor) {
+        const typed = () => {
+          tagline.dataset.typed = 'done';
+          tagline.dispatchEvent(new Event('typed'));
+        };
         if (reduceMotion) {
           tagline.textContent = text;
           cursor.hidden = true;
+          typed();
         } else {
           cursor.hidden = false;
 
@@ -144,7 +149,7 @@ const nav = [
           const typeNext = () => {
             if (index >= text.length) {
               cursor.classList.add('is-finishing');
-              setTimeout(() => { cursor.hidden = true; }, 1100);
+              setTimeout(() => { cursor.hidden = true; typed(); }, 1100);
               return;
             }
             const char = text[index++];
@@ -156,6 +161,11 @@ const nav = [
         }
       }
     })();
+  </script>
+  <script>
+    import { startTextString } from '../scripts/text-string.js';
+    const typed = document.getElementById('heroTaglineTyped');
+    if (typed) startTextString({ tagline: typed.closest('.hero-tagline'), typed, text: 'Building things, learning out loud.' });
   </script>
 </body>
 </html>
