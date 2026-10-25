@@ -105,6 +105,37 @@ jobs:
           W3NAME_KEY: ${{ secrets.W3NAME_KEY }}
         run: node scripts/ipns.mjs publish "${{ steps.pinata.outputs.cid_v1 }}"
 
+      # Every deploy pins a full copy of the site, and the free Pinata plan blocks the account once
+      # they pile up. Only after the IPNS name points at the new build, keep it and the build before
+      # it (still served from caches for a few minutes) and unpin the rest.
+      - name: Remove old builds from Pinata
+        if: env.HAS_W3NAME_KEY == 'true'
+        env:
+          PINATA_JWT: ${{ secrets.PINATA_JWT }}
+          NEW_CID: ${{ steps.pinata.outputs.cid_v1 }}
+        run: |
+          node <<'NODE'
+          const { PinataSDK } = require('pinata');
+          const pinata = new PinataSDK({ pinataJwt: process.env.PINATA_JWT });
+
+          (async () => {
+            const builds = (await pinata.files.public.list().name('clifcode-portfolio').all())
+              .filter((file) => file.name === 'clifcode-portfolio' && file.cid !== 'pending')
+              .sort((a, b) => b.created_at.localeCompare(a.created_at));
+            const keep = new Set([process.env.NEW_CID]);
+            for (const file of builds) {
+              if (keep.size >= 2) break;
+              keep.add(file.cid);
+            }
+            const old = builds.filter((file) => !keep.has(file.cid));
+            console.log(`Keeping ${[...keep].join(', ')}; removing ${old.length} old build(s).`);
+            if (old.length) await pinata.files.public.delete(old.map((file) => file.id));
+          })().catch((error) => {
+            // The new build is already live, so a failed clean-up is a warning, not a failed deploy.
+            console.log(`::warning::Could not remove old builds from Pinata: ${error?.message || error}`);
+          });
+          NODE
+
       - name: IPNS not configured
         if: env.HAS_W3NAME_KEY != 'true'
         run: echo "::notice::W3NAME_KEY secret not set; skipped IPNS publish. Update the ENS content hash manually with the ENS_CONTENT value above."
