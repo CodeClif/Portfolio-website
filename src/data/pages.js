@@ -1,5 +1,21 @@
 export const pages = [
-  {slug:'projects',title:'Projects',intro:'Things I am building, testing or have shipped.',items:[{title:'Pumply',desc:'Crowdsourced fuel information for Ghana.',href:'projects/pumply'},{title:'Forecast',desc:'A play-credit prediction market experiment around African events.',href:'projects/forecast'}]},
+  {slug:'projects',title:'Projects',intro:'Things I am building, testing or have shipped, most of them for Ghana.',groups:[
+    {title:'Products',items:[
+      {title:'Pumply',desc:'Crowdsourced fuel prices for Ghana: find stations near you and what they charge right now.',href:'projects/pumply'},
+      {title:'Forecast',desc:'A play-credit prediction market experiment around African events, starting with the NSMQ.',href:'projects/forecast'},
+      {title:'DwaPage',desc:'Your shop in one link: small businesses in Ghana get an order or booking page with Mobile Money checkout, and a Telegram ping for every paid order.',href:'https://momo-kit.codeclif.workers.dev',external:true},
+      {title:'ReadyOps',desc:'Business readiness for Ghana: what support a business may qualify for, what it needs to do next, and the evidence to prove it.'},
+      {title:'Lab Passport',desc:'A prototype for comparing diagnostic labs in Ghana by price, distance and turnaround time, booking a slot, and keeping your results in one place.'}
+    ]},
+    {title:'Games and toys',items:[
+      {title:'Dame',desc:'Ghanaian draughts drawn in a school notebook. Forest animals take on the market-day crew; play the computer, a friend, or someone online.',href:'https://codeclif.github.io/dame/',external:true},
+      {title:'Nsem Cards',desc:'Pick an Akan proverb and an Adinkra symbol and make a card the size of a WhatsApp status, as a picture or a 6-second video.',href:'https://codeclif.github.io/nsem-cards/',external:true},
+      {title:'Touch grass',desc:'A hill of grass you can run your hand through. Find the four-leaf clover, earn a cutlass, make it rain.',href:'touch-grass'}
+    ]},
+    {title:'Client work',items:[
+      {title:'Luluju Foods',desc:'The weekly lunch menu site for Luluju Foods Enterprise, where each day\'s share preview shows that day\'s meal.',href:'https://luluju.food',external:true}
+    ]}
+  ]},
   {slug:'research',title:'Research',intro:'Questions I am exploring, without pretending every answer is finished.',items:[{date:'2026 Aug 02',title:'Why prediction markets fascinate me',href:'posts/why-prediction-markets-fascinate-me'},{date:'2026 May 31',title:'What crowdsourcing gets right and wrong',href:'posts/what-crowdsourcing-gets-right-and-wrong'}]},
   {slug:'diary',title:'Diary',intro:'Dated thoughts, observations and things I want to remember.',items:[{date:'2026 Oct 04',title:'Notes from Tech Buddies II',href:'posts/notes-from-tech-buddies-ii'},{date:'2026 Sep 29',title:'Notes from a random Tech Buddies Space',href:'posts/notes-from-a-random-tech-buddies-space'},{date:'2026 Jul 06',title:'Thinking about craftsmanship vs perfectionism',href:'posts/craftsmanship-vs-perfectionism'}]},
   {slug:'ai',title:'AI',intro:'Notes and writing about AI, software and how the way we build is changing.',items:[{date:'2026 Oct 04',title:'Notes from Tech Buddies II',href:'posts/notes-from-tech-buddies-ii'},{date:'2026 Sep 13',title:'The real joy was never typing',href:'posts/the-real-joy-was-never-typing'}]},

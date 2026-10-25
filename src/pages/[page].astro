@@ -32,6 +32,17 @@ const { page } = Astro.props;
       </section>
     )}
     {page.empty && <p>{page.empty}</p>}
+    {page.groups?.map((group)=>
+      <section class="project-group">
+        <h2>{group.title}</h2>
+        <ul class="simple-list">{group.items.map((item)=><li>
+          {item.href
+            ? <a href={item.external ? item.href : url(item.href)} target={item.external ? '_blank' : undefined} rel={item.external ? 'noopener noreferrer' : undefined}>{item.title}{item.external ? ' ↗' : ''}</a>
+            : <span class="item-title">{item.title}</span>}
+          {item.desc && <p>{item.desc}</p>}
+        </li>)}</ul>
+      </section>
+    )}
     {page.items && <ul class="simple-list">{page.items.map((item)=><li>{item.date && <time>{item.date}</time>}<a href={item.href?url(item.href):'#'}>{item.title}</a>{item.desc && <p>{item.desc}</p>}</li>)}</ul>}
   </section>
 </BaseLayout>

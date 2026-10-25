@@ -389,9 +389,9 @@
    with the text colour, so it follows light and dark mode. */
 .identity-wordmark{
   display:block;
-  /* Same visual area as the old 2.15rem text name (~140x26px of ink). */
-  height:40px;
-  aspect-ratio:415 / 192;
+  /* Two square characters need a little more height than a line of letters to stay readable. */
+  height:48px;
+  aspect-ratio:788 / 351;
   background:currentColor;
   -webkit-mask:var(--wordmark) center / contain no-repeat;
   mask:var(--wordmark) center / contain no-repeat;
@@ -409,7 +409,7 @@
 }
 @media(max-width:600px){
   .identity-wordmark{
-    height:30px;
+    height:38px;
   }
 }
 
@@ -447,3 +447,9 @@
 
 /* Ten sections make a lone last item in the three-column phone menu; centre it. */
 @media(max-width:900px){.topic-nav a:last-child:nth-child(3n+1){grid-column:2}}
+
+/* Projects grouped by kind; an item without a public link shows its name unlinked. */
+.project-group{margin-top:8px}.project-group+.project-group{margin-top:34px}
+.project-group h2{font-size:.82rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0 0 16px}
+.simple-list .item-title{font-size:1.25rem;font-weight:650}
+.simple-list li p{margin:6px 0 0}
