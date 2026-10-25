@@ -163,9 +163,11 @@ const nav = [
     })();
   </script>
   <script>
-    import { startTextString } from '../scripts/text-string.js';
+    import { pullableTagline, pullableArticle } from '../scripts/text-string.js';
     const typed = document.getElementById('heroTaglineTyped');
-    if (typed) startTextString({ tagline: typed.closest('.hero-tagline'), typed, text: 'Building things, learning out loud.' });
+    if (typed) pullableTagline(typed);
+    const article = document.querySelector('article.article-body:not(.project-story)');
+    if (article) pullableArticle(article);
   </script>
 </body>
 </html>
