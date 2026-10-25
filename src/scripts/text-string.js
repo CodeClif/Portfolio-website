@@ -35,6 +35,15 @@ function overlay() {
   return shared;
 }
 
+// While the string is out, the page must not scroll or bounce under the finger. Cancelling touch
+// events is not enough in in-app browsers on iPhone; touch-action is what they respect.
+function holdPage(on) {
+  for (const el of [document.documentElement, document.body]) {
+    el.style.touchAction = on ? 'none' : '';
+    el.style.overscrollBehavior = on ? 'none' : '';
+  }
+}
+
 // nodes(): the text nodes that make up the string, in reading order.
 // grabZone(): optional box (viewport coordinates) that takes hold of the loose end when touched;
 //   by default it is the last word still in place.
@@ -156,9 +165,38 @@ export function makePullable({ nodes: collect, grabZone, maxLoose = 1600 }) {
     if (i < 0) return false;
     grabs.set(e.pointerId, { i, x: e.clientX, y: e.clientY });
     held.add(i);
+    holdPage(true);
     rewinding = false; rewindAt = Infinity;
     start();
     return true;
+  }
+
+  // An invisible handle over the loose end. A touch that starts on it never scrolls the page, which
+  // is the only thing in-app browsers on iPhone reliably respect. The tagline has its own CSS.
+  let handle = null;
+  function placeHandle() {
+    if (grabZone || !armed || !build() || pinned < n) return;
+    const z = endZone();
+    if (!z) return;
+    if (!handle) {
+      handle = document.createElement('div');
+      handle.setAttribute('aria-hidden', 'true');
+      handle.style.cssText = 'position:absolute;z-index:2;touch-action:none;cursor:grab;-webkit-user-select:none;user-select:none';
+      document.body.appendChild(handle);
+    }
+    // kept inside the page width, so it never makes the page scroll sideways
+    const left = Math.max(0, z.left - 16), right = Math.min(document.documentElement.clientWidth, z.right + 24);
+    Object.assign(handle.style, {
+      left: `${left + scrollX}px`, top: `${z.top - 16 + scrollY}px`,
+      width: `${right - left}px`, height: `${z.bottom - z.top + 32}px`
+    });
+  }
+  // When the page around the text changes size (images loading, rotating the phone), every letter
+  // has a new place, so forget the old ones.
+  function relayout() {
+    if (!segs || pinned < n) return;
+    home = new Array(n); rest.fill(0);
+    placeHandle();
   }
 
   let armed = false;
@@ -193,13 +231,14 @@ export function makePullable({ nodes: collect, grabZone, maxLoose = 1600 }) {
     };
     addEventListener('pointerup', release);
     addEventListener('pointercancel', release);
-    // A new layout moves every letter's place, so put the text back and measure again later.
+    // A new layout moves every letter's place, so put the text back and measure again.
     addEventListener('resize', () => {
       if (!segs) return;
       grabs.clear(); held.clear(); rewinding = false;
       while (pinned < n) pinOne();
-      home = new Array(n); rest.fill(0);
+      relayout();
     });
+    if (!grabZone) new ResizeObserver(relayout).observe(document.body);
   }
 
   function step(dt, now) {
@@ -341,7 +380,7 @@ export function makePullable({ nodes: collect, grabZone, maxLoose = 1600 }) {
     if (!grabs.size && pinned < n && !rewinding && now > rewindAt) rewinding = true;
     for (let s = 0; s < SUBSTEPS; s++) step(dt / SUBSTEPS, now);
     draw();
-    if (pinned === n && !grabs.size) { running = false; return; }
+    if (pinned === n && !grabs.size) { running = false; holdPage(false); placeHandle(); return; }
     requestAnimationFrame(frame);
   }
   function start() {
@@ -352,6 +391,7 @@ export function makePullable({ nodes: collect, grabZone, maxLoose = 1600 }) {
 
   return {
     arm,
+    placeHandle,
     // Let the last few letters slip and swing back, so it is clear the text comes loose.
     hint(count = 4) {
       if (!build() || grabs.size || pinned < n) return;
@@ -407,6 +447,7 @@ export function pullableArticle(article) {
   const seen = new IntersectionObserver((entries) => {
     if (!entries.some((e) => e.isIntersecting)) return;
     seen.disconnect();
+    string.placeHandle();
     if (once('clifcode-string-hint-article')) setTimeout(() => string.hint(5), 700);
   }, { threshold: 1, rootMargin: '0px 0px -12% 0px' });
   seen.observe(lastBlock);
